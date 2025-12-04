@@ -82,7 +82,16 @@ STYLE_WORDS = {
     "Super",
     "Ultra",
     # Numeric weights
-    "100", "200", "300", "400", "500", "600", "700", "800", "900","1000",
+    "100",
+    "200",
+    "300",
+    "400",
+    "500",
+    "600",
+    "700",
+    "800",
+    "900",
+    "1000",
     # Widths
     "Compressed",
     "Condensed",
@@ -149,7 +158,7 @@ STYLE_WORDS = {
     "Smallcaps",
     "Unicase",
     "Capitals",
-    #Decorative
+    # Decorative
     "Rough",
     "Vintage",
     "Antique",
@@ -162,8 +171,6 @@ STYLE_WORDS = {
     "Printed",
     "Pressed",
     "Distressed",
-    
-    
 }
 
 
