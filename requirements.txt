@@ -1,0 +1,6 @@
+# Core library dependencies
+# These are the base dependencies for the core utilities library.
+# All other scripts depend on core, so these are effectively required everywhere.
+
+fonttools>=4.40.0
+rich>=13.0.0
