@@ -32,7 +32,10 @@ except Exception:  # pragma: no cover
 
 from xml.etree import ElementTree as ET_fallback
 
-from fontTools.ttLib import TTFont  # type: ignore
+from FontCore.core_name_policies import (
+    sanitize_cff_name_string,
+    sanitize_postscript,
+)
 from fontTools.ttLib.tables._n_a_m_e import NameRecord  # type: ignore
 
 # New imports for enhanced functionality
@@ -1438,6 +1441,9 @@ def _iter_cff_roots(root):
 def _sync_cff_fontname_ttx(cff_root, ps_name: str) -> bool:
     """Ensure the CFF table's FontName and CFFFont name attributes match the given PostScript name."""
     changed = False
+    ps_name = sanitize_postscript(ps_name)
+    if not ps_name:
+        return False
 
     # Update <FontName> element text/value
     font_name_el = cff_root.find(".//FontName")
@@ -1460,6 +1466,9 @@ def _sync_cff_fontname_ttx(cff_root, ps_name: str) -> bool:
 
 def _sync_cff_fullname_ttx(cff_root, full_name: str) -> bool:
     """Sync FullName in a CFF table root."""
+    full_name = sanitize_cff_name_string(full_name)
+    if not full_name:
+        return False
     fl = cff_root.find(".//FullName")
     if fl is not None:
         return _set_text_or_value_attr(fl, full_name)
@@ -1468,6 +1477,9 @@ def _sync_cff_fullname_ttx(cff_root, full_name: str) -> bool:
 
 def _sync_cff_familyname_ttx(cff_root, family_name: str) -> bool:
     """Sync FamilyName in a CFF table root."""
+    family_name = sanitize_cff_name_string(family_name)
+    if not family_name:
+        return False
     fam = cff_root.find(".//FamilyName")
     if fam is not None:
         return _set_text_or_value_attr(fam, family_name)
@@ -1500,6 +1512,7 @@ def sync_cff_names_ttx(root) -> bool:
 
 def set_cff_fontname_ttx(root, postscript_name: str) -> bool:
     """Force CFF/CFF2 FontName from a provided PostScript name (TTX XML path)."""
+    postscript_name = sanitize_postscript(postscript_name)
     if not postscript_name:
         return False
     changed_any = False

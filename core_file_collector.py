@@ -22,10 +22,20 @@ import glob
 import os
 import time
 from pathlib import Path
-from typing import Callable, Dict, Iterable, Iterator, List, Optional, Set
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Set, TypedDict
 
 
 SUPPORTED_EXTENSIONS: Set[str] = {".ttf", ".otf", ".woff", ".woff2", ".ttx"}
+
+
+class ProgressDict(TypedDict, total=False):
+    """Type definition for progress callback dictionary."""
+
+    dirs_scanned: int
+    files_scanned: int
+    matches_found: int
+    current_dir: str
+    error: str  # optional
 
 
 def _normalize_paths(paths: Iterable[str | Path]) -> List[Path]:
@@ -94,13 +104,23 @@ def _safe_absolute_path(path: str, allowed: Set[str]) -> Optional[str]:
         return None
 
 
+class ProgressDict(TypedDict, total=False):
+    """Type definition for progress callback dictionary."""
+
+    dirs_scanned: int
+    files_scanned: int
+    matches_found: int
+    current_dir: str
+    error: str  # optional
+
+
 def iter_font_files(
     paths: Iterable[str | Path],
     recursive: bool = True,
     *,
     allowed_extensions: Optional[Set[str]] = None,
     include_uppercase: bool = True,
-    on_progress: Optional[Callable[[Dict[str, int | str]], None]] = None,
+    on_progress: Optional[Callable[[ProgressDict], None]] = None,
 ) -> Iterator[str]:
     """Iterate over font file paths as they are discovered, with optional progress callbacks.
 
@@ -155,19 +175,33 @@ def iter_font_files(
             elif path_obj.is_dir():
                 if recursive:
                     # Use os.walk for better performance than glob
-                    for root, dirs, files in os.walk(path_obj):
-                        current_dir = root
-                        dirs_scanned += 1
+                    try:
+                        for root, dirs, files in os.walk(path_obj):
+                            current_dir = root
+                            dirs_scanned += 1
 
-                        for filename in files:
-                            files_scanned += 1
-                            file_path = Path(root) / filename
+                            for filename in files:
+                                files_scanned += 1
+                                file_path = Path(root) / filename
 
-                            if _matches_extension(file_path, allowed):
-                                matches_found += 1
-                                yield str(file_path.resolve())
+                                if _matches_extension(file_path, allowed):
+                                    matches_found += 1
+                                    yield str(file_path.resolve())
 
-                            _report_progress()
+                                _report_progress()
+                    except (PermissionError, OSError) as e:
+                        # Report error but continue with other directories
+                        if on_progress:
+                            on_progress(
+                                {
+                                    "dirs_scanned": dirs_scanned,
+                                    "files_scanned": files_scanned,
+                                    "matches_found": matches_found,
+                                    "current_dir": str(path_obj),
+                                    "error": str(e),
+                                }
+                            )
+                        continue  # Skip this directory, continue with others
                 else:
                     # Non-recursive: check files in directory only
                     current_dir = str(path_obj)
@@ -207,7 +241,7 @@ def collect_font_files_with_progress(
     *,
     allowed_extensions: Optional[Set[str]] = None,
     include_uppercase: bool = True,
-    on_progress: Optional[Callable[[Dict[str, int | str]], None]] = None,
+    on_progress: Optional[Callable[[ProgressDict], None]] = None,
 ) -> List[str]:
     """Collect font file paths with progress callbacks (wrapper around iter_font_files).
 
@@ -274,9 +308,98 @@ def collect_font_files(
     return sorted(set(filtered))
 
 
+def collect_font_files_with_rich_progress(
+    paths: Iterable[str | Path],
+    recursive: bool = True,
+    *,
+    allowed_extensions: Optional[Set[str]] = None,
+    include_uppercase: bool = True,
+    description: str = "Scanning for font files...",
+    console: Optional[object] = None,
+) -> List[str]:
+    """Collect font files with a Rich progress bar (optional enhancement).
+
+    This is a convenience wrapper that uses Rich progress bars if available,
+    falling back to simple collection if Rich is not available or if console
+    is not provided.
+
+    Args:
+        paths: Files and/or directories to scan
+        recursive: Recurse into directories
+        allowed_extensions: Override supported extensions
+        include_uppercase: Include uppercase extension variants
+        description: Progress bar description text
+        console: Rich Console instance (optional, will try to get one if None)
+
+    Returns:
+        Sorted list of absolute file paths
+    """
+    # Try to import Rich and console_styles (optional dependencies)
+    try:
+        import FontCore.core_console_styles as cs
+        from FontCore.core_console_styles import create_progress_bar
+
+        rich_available = cs.RICH_AVAILABLE
+        if console is None:
+            console = cs.get_console()
+    except ImportError:
+        rich_available = False
+        console = None
+
+    # Use Rich progress bar if available
+    if rich_available and console:
+        try:
+            progress = create_progress_bar(console)
+            task_id = progress.add_task(
+                f"[progress.description]{description}",
+                total=None,  # Indeterminate progress
+            )
+
+            font_paths = []
+
+            def progress_callback(progress_dict: ProgressDict) -> None:
+                """Update progress bar during font file collection."""
+                files_scanned = progress_dict.get("files_scanned", 0)
+                matches_found = progress_dict.get("matches_found", 0)
+                current_dir = progress_dict.get("current_dir", "")
+
+                # Update progress description
+                if current_dir and current_dir != "Complete":
+                    dir_name = Path(current_dir).name
+                    desc = f"{description} {matches_found} fonts found ({files_scanned} files scanned) - {dir_name}"
+                else:
+                    desc = f"{description} {matches_found} fonts found ({files_scanned} files scanned)"
+
+                progress.update(task_id, description=desc)
+
+            with progress:
+                for font_path in iter_font_files(
+                    paths=paths,
+                    recursive=recursive,
+                    allowed_extensions=allowed_extensions,
+                    include_uppercase=include_uppercase,
+                    on_progress=progress_callback,
+                ):
+                    font_paths.append(font_path)
+
+            return sorted(set(font_paths))
+        except Exception:
+            # Fallback to simple collection if progress bar fails
+            pass
+
+    # Fallback: simple collection without progress bar
+    return collect_font_files_with_progress(
+        paths=paths,
+        recursive=recursive,
+        allowed_extensions=allowed_extensions,
+        include_uppercase=include_uppercase,
+    )
+
+
 __all__ = [
     "SUPPORTED_EXTENSIONS",
     "collect_font_files",
     "iter_font_files",
     "collect_font_files_with_progress",
+    "collect_font_files_with_rich_progress",
 ]

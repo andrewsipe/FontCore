@@ -16,8 +16,9 @@ Usage:
     families = sorter.group_by_family()
 
     # Sort by superfamily with options
+    # Note: ignore_terms is now passed to FontSorter constructor
+    sorter = FontSorter(font_infos, ignore_terms={'29LT', 'Adobe'})
     superfamilies = sorter.group_by_superfamily(
-        ignore_terms=['29LT', 'Adobe'],
         exclude_families=['Script', 'Display']
     )
 
@@ -69,22 +70,81 @@ class FontInfo:
 class FontSorter:
     """Intelligent font sorting and grouping utilities."""
 
-    def __init__(self, font_infos: List[FontInfo]):
-        """Initialize with a list of FontInfo objects."""
+    def __init__(
+        self, font_infos: List[FontInfo], ignore_terms: Optional[Set[str]] = None
+    ):
+        """Initialize with a list of FontInfo objects.
+
+        Args:
+            font_infos: List of FontInfo objects to sort/group
+            ignore_terms: Optional set of terms to ignore when normalizing family names.
+                         If provided, these terms are removed from family names before
+                         grouping operations. Applies to both family and superfamily grouping.
+        """
         self.font_infos = font_infos
+        self.ignore_terms = set(ignore_terms or [])
+        # Normalize all family names upfront
+        # Use path as key since FontInfo is not hashable
+        self._normalized_names: Dict[str, str] = {
+            fi.path: self._normalize_family_name(fi.family_name) for fi in font_infos
+        }
 
     def group_by_family(
         self, forced_groups: Optional[List[List[str]]] = None
     ) -> Dict[str, List[FontInfo]]:
-        """Group fonts by family name (standard grouping)."""
+        """Group fonts by normalized family name (standard grouping).
+
+        Uses normalized family names (with ignored terms removed) for grouping.
+        Original family names are preserved in FontInfo objects for display.
+        """
         families: Dict[str, List[FontInfo]] = {}
         for font_info in self.font_infos:
-            families.setdefault(font_info.family_name, []).append(font_info)
+            normalized = self._normalized_names[font_info.path]
+            families.setdefault(normalized, []).append(font_info)
 
         if forced_groups:
-            families = self.apply_forced_groups(families, forced_groups)
+            # Normalize forced group names before applying
+            normalized_forced_groups = [
+                [self._normalize_family_name(name) for name in group]
+                for group in forced_groups
+            ]
+            families = self.apply_forced_groups(families, normalized_forced_groups)
 
         return families
+
+    def get_normalized_name(self, font_info: FontInfo) -> str:
+        """Get normalized family name for a FontInfo object.
+
+        Args:
+            font_info: FontInfo object to get normalized name for
+
+        Returns:
+            Normalized family name (with ignored terms removed)
+        """
+        return self._normalized_names.get(font_info.path, font_info.family_name)
+
+    def get_normalization_summary(self) -> Dict[str, str]:
+        """Get mapping of original → normalized names for display.
+
+        Only includes families where normalization actually changed the name.
+
+        Returns:
+            Dictionary mapping original family names to normalized names
+        """
+        summary = {}
+        seen_originals = set()
+        # Build path to FontInfo mapping for lookup
+        path_to_fontinfo = {fi.path: fi for fi in self.font_infos}
+        for path, normalized in self._normalized_names.items():
+            fi = path_to_fontinfo.get(path)
+            if (
+                fi
+                and fi.family_name != normalized
+                and fi.family_name not in seen_originals
+            ):
+                summary[fi.family_name] = normalized
+                seen_originals.add(fi.family_name)
+        return summary
 
     def group_by_vendor(self) -> Dict[str, List[FontInfo]]:
         """Group fonts by vendor name."""
@@ -177,6 +237,20 @@ class FontSorter:
 
         return len(second_tokens) >= 4
 
+    def _normalize_family_name(self, name: str) -> str:
+        """Normalize family name by removing ignored terms.
+
+        Args:
+            name: Original family name
+
+        Returns:
+            Normalized family name with ignored terms removed, or original name if no normalization needed
+        """
+        if not self.ignore_terms:
+            return name
+        tokens = self._filter_tokens(name, self.ignore_terms)
+        return " ".join(tokens) if tokens else name
+
     def _filter_tokens(self, name: str, ignore_terms: Set[str]) -> List[str]:
         """Filter out ignored terms from name tokens."""
         return [t for t in name.split() if t not in ignore_terms]
@@ -220,11 +294,31 @@ class FontSorter:
         return len(tokens_a) == 1 and len(tokens_b) == 1
 
     def _shares_prefix(
-        self, name_a: str, name_b: str, ignore_terms: Set[str]
+        self,
+        name_a: str,
+        name_b: str,
+        ignore_terms: Optional[Set[str]] = None,
+        all_family_names: Optional[List[str]] = None,
     ) -> Optional[str]:
-        """Check if two names share a meaningful prefix."""
-        tokens_a = self._filter_tokens(name_a, ignore_terms)
-        tokens_b = self._filter_tokens(name_b, ignore_terms)
+        """Check if two names share a meaningful prefix.
+
+        Note: When used with normalized names (from constructor), ignore_terms should be None
+        since names are already normalized. This parameter is kept for backward compatibility.
+
+        Args:
+            all_family_names: Full list of family names in context. When provided, single-token
+                              prefixes are rejected if they are shared by 4+ families with 4+
+                              distinct second tokens (i.e. a foundry/vendor prefix, not a
+                              meaningful superfamily root).
+        """
+        # If ignore_terms provided, filter tokens (legacy behavior)
+        # Otherwise, assume names are already normalized
+        if ignore_terms is not None:
+            tokens_a = self._filter_tokens(name_a, ignore_terms)
+            tokens_b = self._filter_tokens(name_b, ignore_terms)
+        else:
+            tokens_a = name_a.split()
+            tokens_b = name_b.split()
 
         if not tokens_a or not tokens_b:
             return None
@@ -240,8 +334,12 @@ class FontSorter:
         if len(common) >= 2:
             return common_prefix
 
-        # Single token needs validation
+        # Single token: reject if it's a weak/overly-broad prefix (e.g. a foundry name
+        # shared by every family in the collection)
         token = common[0]
+        if all_family_names and self._is_weak_prefix(token, all_family_names):
+            return None
+
         return (
             common_prefix
             if self._is_substantial_single_token(token, tokens_a, tokens_b)
@@ -305,15 +403,26 @@ class FontSorter:
         self,
         groupable_families: List[str],
         excluded_families: List[str],
-        ignore_terms: Set[str],
     ) -> Dict[str, str]:
-        """Build mapping from family names to superfamily names."""
+        """Build mapping from normalized family names to superfamily names.
+
+        Args:
+            groupable_families: List of normalized family names to group
+            excluded_families: List of normalized family names to exclude from grouping
+
+        Returns:
+            Dictionary mapping normalized family names to superfamily names
+        """
         superfamily_map: Dict[str, str] = {}
 
         # Find shared prefixes and cluster families
+        # Names are already normalized, so no need to filter tokens
+        all_family_names = groupable_families + excluded_families
         for i, name_a in enumerate(groupable_families):
             for name_b in groupable_families[i + 1 :]:
-                common_prefix = self._shares_prefix(name_a, name_b, ignore_terms)
+                common_prefix = self._shares_prefix(
+                    name_a, name_b, ignore_terms=None, all_family_names=all_family_names
+                )
 
                 if common_prefix:
                     self._assign_superfamily(
@@ -333,41 +442,53 @@ class FontSorter:
 
     def group_by_superfamily(
         self,
-        ignore_terms: Optional[List[str]] = None,
         exclude_families: Optional[List[str]] = None,
         forced_groups: Optional[List[List[str]]] = None,
     ) -> Dict[str, List[FontInfo]]:
-        """Group fonts by superfamily using common prefix clustering."""
-        ignore_terms_set = set(ignore_terms or [])
+        """Group fonts by superfamily using common prefix clustering.
+
+        Uses normalized family names (with ignored terms removed) for prefix comparison.
+        Original family names are preserved in FontInfo objects for display.
+
+        Args:
+            exclude_families: Optional list of family name patterns to exclude from superfamily grouping.
+                            Patterns are matched against normalized names.
+            forced_groups: Optional list of forced group merges. Family names in forced groups
+                          are normalized before matching.
+        """
         exclude_patterns = [pattern.lower() for pattern in (exclude_families or [])]
 
-        # Group by family name first
-        family_names_to_fonts: Dict[str, List[FontInfo]] = {}
+        # Group by normalized family name first
+        normalized_names_to_fonts: Dict[str, List[FontInfo]] = {}
         for font_info in self.font_infos:
-            family_names_to_fonts.setdefault(font_info.family_name, []).append(
-                font_info
-            )
+            normalized = self._normalized_names[font_info.path]
+            normalized_names_to_fonts.setdefault(normalized, []).append(font_info)
 
-        # Partition families
-        unique_names = list(family_names_to_fonts.keys())
+        # Partition families (using normalized names)
+        unique_normalized_names = list(normalized_names_to_fonts.keys())
         excluded_families, groupable_families = self._partition_families(
-            unique_names, exclude_patterns
+            unique_normalized_names, exclude_patterns
         )
 
-        # Build superfamily mapping
+        # Build superfamily mapping (names are already normalized)
         superfamily_map = self._build_superfamily_map(
-            groupable_families, excluded_families, ignore_terms_set
+            groupable_families, excluded_families
         )
 
-        # Group fonts by superfamily
+        # Group fonts by superfamily (using normalized names)
         families: Dict[str, List[FontInfo]] = {}
         for font_info in self.font_infos:
-            superfamily_name = superfamily_map[font_info.family_name]
+            normalized = self._normalized_names[font_info.path]
+            superfamily_name = superfamily_map[normalized]
             families.setdefault(superfamily_name, []).append(font_info)
 
-        # Apply forced groupings if provided
+        # Apply forced groupings if provided (normalize forced group names)
         if forced_groups:
-            families = self.apply_forced_groups(families, forced_groups)
+            normalized_forced_groups = [
+                [self._normalize_family_name(name) for name in group]
+                for group in forced_groups
+            ]
+            families = self.apply_forced_groups(families, normalized_forced_groups)
 
         return families
 
@@ -551,7 +672,21 @@ def sort_fonts_by_superfamily(
     forced_groups: Optional[List[List[str]]] = None,
     extract_metadata: bool = True,
 ) -> Dict[str, List[FontInfo]]:
-    """Sort fonts by superfamily using common prefix clustering."""
+    """Sort fonts by superfamily using common prefix clustering.
+
+    Args:
+        filepaths: List of font file paths
+        ignore_terms: Optional list of terms to ignore when normalizing family names
+        exclude_families: Optional list of family name patterns to exclude
+        forced_groups: Optional list of forced group merges
+        extract_metadata: Whether to extract font metadata
+
+    Returns:
+        Dictionary mapping superfamily names to lists of FontInfo objects
+    """
     font_infos = create_font_info_from_paths(filepaths, extract_metadata)
-    sorter = FontSorter(font_infos)
-    return sorter.group_by_superfamily(ignore_terms, exclude_families, forced_groups)
+    ignore_terms_set = set(ignore_terms or [])
+    sorter = FontSorter(font_infos, ignore_terms=ignore_terms_set)
+    return sorter.group_by_superfamily(
+        exclude_families=exclude_families, forced_groups=forced_groups
+    )

@@ -14,7 +14,7 @@ from FontCore.core_ttx_table_io import (
     count_mac_name_records_ttx,
     count_mac_name_records_binary,
 )
-from typing import Optional
+from typing import Optional, Union
 
 # New imports for enhanced functionality
 from FontCore.core_logging_config import get_logger
@@ -30,6 +30,19 @@ console = cs.get_console()
 
 
 # ErrorContext enum is now imported from FontCore.core_error_handling
+
+# Per-file outcome from process_file_fn (see run_workflow):
+#   True  — processed OK and a write occurred (or dry-run "would update")
+#   False — processed OK, no write needed
+#   None  — failure (replacer should have logged via show_error); counted as errors
+FileProcessResult = Union[bool, None]
+
+
+def is_blank_name_value(text: Optional[str]) -> bool:
+    """True if a name-table string is missing or whitespace-only."""
+    if text is None:
+        return True
+    return str(text).strip() == ""
 
 
 class ProcessingStats:
@@ -145,14 +158,6 @@ def check_and_show_mac_records(
         cs.emit("", console=console)
 
 
-def show_dry_run_notice(console) -> None:
-    """Display dry-run mode notice"""
-    cs.emit("", console=console)
-    cs.StatusIndicator("warning").add_message(
-        "[bold][warning]DRY RUN MODE[/bold] - no changes will be made.[/warning]"
-    ).emit(console=console)
-
-
 def remove_mac_records_ttx(filepath: str, dry_run: bool = False) -> int:
     """Remove Mac name records (platformID=1) from TTX file. Returns count of removed records."""
     try:
@@ -261,23 +266,23 @@ def show_processing_summary(
 
 
 def show_preview(filepath: str, dry_run: bool, console) -> None:
-    """Display DRY-RUN MODE preview message for a file"""
+    """Display preview message for a file (DRY prefix will be added automatically if dry_run=True)"""
     cs.StatusIndicator("preview", dry_run=dry_run).add_message(
-        f"[bold][preview]DRY-RUN MODE[/bold] No changes will be saved to: {cs.fmt_file(filepath, filename_only=True)}[preview]"
+        f"No changes will be saved to: {cs.fmt_file(filepath, filename_only=True)}"
     ).emit(console=console)
 
 
 def show_parsing(filepath: str, dry_run: bool, console) -> None:
     """Display PARSING file message"""
     cs.StatusIndicator("parsing", dry_run=dry_run).add_file(
-        filepath, filename_only=False
+        filepath, filename_only=True
     ).emit(console=console)
 
 
 def show_saved(filepath: str, dry_run: bool, console) -> None:
     """Display SAVED TO file message with reverse styling"""
     cs.StatusIndicator("saved", dry_run=dry_run).add_file(
-        filepath, filename_only=False, style="reverse"
+        filepath, filename_only=True
     ).emit(console=console)
 
 
@@ -445,7 +450,11 @@ def run_workflow(
     Args:
         file_paths: List of font file paths to process
         script_args: Parsed arguments namespace
-        process_file_fn: Function to call for each file (filepath, script_args, dry_run, stats) -> bool
+        process_file_fn: Function called per file (filepath, script_args, dry_run, stats) -> FileProcessResult.
+            Return True if the file was updated (or would be in dry-run), False if no change
+            was needed, or None if processing failed (after logging, e.g. show_error).
+            Unmigrated replacers that return only bool still map False to "unchanged"; failures
+            must return None once migrated to avoid mis-counting.
         title: Script title for header
         name_id: NameID number being processed
         description: Description of the nameID (e.g., "Unique ID")
@@ -453,7 +462,8 @@ def run_workflow(
         batch_context: True when called from BatchRunner (enables quit)
 
     Returns:
-        dict: Statistics dictionary with exit_code, updated, unchanged, errors, warnings, error_messages
+        dict: Statistics dictionary with exit_code (0 success, 1 if any per-file errors,
+            2 if user cancelled), updated, unchanged, errors, warnings, error_messages
     """
     # Initialize stats collector
     stats = ProcessingStats()
@@ -499,6 +509,11 @@ def run_workflow(
             "-dmr, --delete-mac-records : Remove all Mac name records (platformID=1) before processing"
         )
 
+    if getattr(script_args, "empty_fields_only", False):
+        active_flags.append(
+            "--empty-fields-only : Only fill blank Windows English name entries; do not overwrite existing text"
+        )
+
     # Add Mac record removal to operations if requested
     if delete_mac_records:
         operations.append("Mac name records will be removed (platformID=1)")
@@ -511,11 +526,8 @@ def run_workflow(
     # Check for Mac records
     check_and_show_mac_records(font_files, console, delete_mac_records)
 
-    # Show dry run indicator
-    if script_args.dry_run:
-        show_dry_run_notice(console)
-
     # Confirm (skip in dry-run mode or if auto-confirm is set)
+    # Note: DRY prefix will be automatically added to all StatusIndicator messages when dry_run=True
     if not script_args.yes:
         if not prompt_confirmation(
             len(font_files), script_args.dry_run, batch_context, console
@@ -572,7 +584,17 @@ def run_workflow(
     # Process files with stats collection
     for file in font_files:
         try:
-            if process_file_fn(file, script_args, script_args.dry_run, stats):
+            result: FileProcessResult = process_file_fn(
+                file, script_args, script_args.dry_run, stats
+            )
+            if result is None:
+                stats.errors += 1
+                stats.add_error(
+                    name_id,
+                    file,
+                    "Processing failed",
+                )
+            elif result:
                 stats.updated += 1
             else:
                 stats.unchanged += 1
@@ -589,4 +611,5 @@ def run_workflow(
         console=console,
     )
 
-    return {"exit_code": 0, **stats.to_dict()}
+    exit_code = 1 if stats.errors > 0 else 0
+    return {"exit_code": exit_code, **stats.to_dict()}

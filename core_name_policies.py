@@ -414,20 +414,16 @@ def normalize_fvar_name(
 
 
 def _sanitize_asterisk_for_id1_id4(text: str | None) -> str | None:
-    """Sanitize asterisk characters for ID1/ID4 by replacing with space and collapsing.
+    """Sanitize asterisk characters for ID1/ID4 by preserving asterisks.
 
-    Replaces each * with a single space, collapses multiple consecutive spaces to single space,
-    and strips leading/trailing spaces. Returns None if input is None.
+    Asterisks are now preserved in family names. This function is kept for
+    backward compatibility but no longer modifies asterisks.
+    Returns None if input is None.
     """
     if text is None:
         return None
-    # Replace * with space
-    result = text.replace("*", " ")
-    # Collapse multiple spaces to single space
-    result = re.sub(r" +", " ", result)
-    # Strip leading/trailing spaces
-    result = result.strip()
-    return result if result else None
+    # Preserve asterisks - return text as-is
+    return text
 
 
 def build_id1(
@@ -448,9 +444,11 @@ def build_id1(
 
     # Variable font policy: Strip "Variable" tokens from family name
     if is_variable:
-        base = variable_family_override if variable_family_override else family
-        # Sanitize asterisk in base family name
-        base = _sanitize_asterisk_for_id1_id4(base) or base
+        if variable_family_override:
+            # Full name from filename: strip only Variable token, keep prefix/suffix (e.g. "Font Variable Black" -> "Font Black")
+            return strip_only_variable_token(variable_family_override) or variable_family_override
+        base = family
+        # Asterisks are preserved in family names
         return strip_variable_tokens(base) or base
 
     style_eff = style
@@ -467,12 +465,7 @@ def build_id1(
     if slope_eff and slope_eff.strip().lower() == "italic":
         slope_eff = None
 
-    # Sanitize asterisk characters for ID1 (replace with space, collapse spaces)
-    family = _sanitize_asterisk_for_id1_id4(family) or family
-    modifier = _sanitize_asterisk_for_id1_id4(modifier)
-    style_eff = _sanitize_asterisk_for_id1_id4(style_eff)
-    slope_eff = _sanitize_asterisk_for_id1_id4(slope_eff)
-
+    # Asterisks are preserved in ID1 (no sanitization needed)
     return join_nonempty(family, modifier, style_eff, slope_eff)
 
 
@@ -486,25 +479,26 @@ def build_id4(
     variable_family_override: str | None = None,
     is_italic_font: bool | None = None,
     slope_from_filename: str | None = None,
+    prefix_from_filename: str | None = None,
+    suffix_from_filename: str | None = None,
     use_filename_normalization: bool = True,
     regular_synonyms_mode: str = DEFAULT_REGULAR_SYNONYMS_MODE,
     regular_equivalent: str | None = None,
 ) -> str:
     """Construct ID4 (Full) string with policy."""
 
-    # Variable font policy: "Family Variable [Slope]"
+    # Variable font policy: preserve prefix/suffix order around "Variable" (prefix before, suffix after)
     if is_variable:
         base = variable_family_override if variable_family_override else family
-        # Sanitize asterisk in base family name
-        base = _sanitize_asterisk_for_id1_id4(base) or base
+        # Asterisks are preserved in family names
 
-        # Prefer explicit filename slope (more accurate)
+        # Prefer explicit prefix/suffix from filename (order preserved: Family prefix Variable suffix)
+        if prefix_from_filename is not None or suffix_from_filename is not None:
+            return join_nonempty(base, prefix_from_filename, "Variable", suffix_from_filename)
+
+        # Legacy: single slope_from_filename (Variable then slope)
         if slope_from_filename:
-            slope_sanitized = (
-                _sanitize_asterisk_for_id1_id4(slope_from_filename)
-                or slope_from_filename
-            )
-            return join_nonempty(base, "Variable", slope_sanitized)
+            return join_nonempty(base, "Variable", slope_from_filename)
 
         # Fallback to italic detection
         suffix = "Variable Italic" if is_italic_font else "Variable"
@@ -520,12 +514,7 @@ def build_id4(
             regular_equivalent=regular_equivalent,
         )
 
-    # Sanitize asterisk characters for ID4 (replace with space, collapse spaces)
-    family = _sanitize_asterisk_for_id1_id4(family) or family
-    modifier = _sanitize_asterisk_for_id1_id4(modifier)
-    style_eff = _sanitize_asterisk_for_id1_id4(style_eff)
-    slope_eff = _sanitize_asterisk_for_id1_id4(slope_eff)
-
+    # Asterisks are preserved in ID4 (no sanitization needed)
     return join_nonempty(family, modifier, style_eff, slope_eff)
 
 
@@ -577,6 +566,7 @@ __all__ = [
     "is_bad_vendor",
     "prepare_vendor_for_achvendid",
     "sanitize_postscript",
+    "sanitize_cff_name_string",
     # ID5
     "format_version_number",
     "build_id5_version_string",
@@ -586,12 +576,17 @@ __all__ = [
     "identify_family_regular_equivalent",
     "get_regular_equivalent_for_families",
     # Variable helpers
+    "split_variable_subfamily",
+    "strip_only_variable_token",
     "strip_variable_tokens",
     "variable_filename_fragment",
     "build_id17_variable_default",
     # CFF/CFF2 helpers
     "has_cff_table",
     "has_cff2_table",
+    "coerce_usable_nametable_string",
+    "sanitize_nametable_string",
+    "get_name_string_unicode_fallback",
     "get_name_string_win_english",
     "sync_cff_names_binary",
 ]
@@ -683,9 +678,53 @@ def is_bad_vendor(vendor_str: str | None) -> bool:
 
 
 def sanitize_postscript(name: str) -> str:
-    """Sanitize PostScript-like names; keep '-', '_', '.', '?', '!', '&'; remove spaces; replace others with '-'."""
+    """Sanitize PostScript-like names; keep '-', '_', '.', '?', '!', '&', '*'; remove spaces; replace others with '-'."""
     name = name.replace(" ", "")
-    return re.sub(r"[^A-Za-z0-9\-\._\?\!\&]", "-", name)
+    return re.sub(r"[^A-Za-z0-9\-\._\?\!\&\*]", "-", name)
+
+
+# Typographic Unicode that commonly appears in trial/promo nameIDs but cannot live in CFF strings.
+_CFF_UNICODE_REPLACEMENTS = (
+    ("\u2014", "-"),  # em dash
+    ("\u2013", "-"),  # en dash
+    ("\u2212", "-"),  # minus sign
+    ("\u2010", "-"),  # hyphen
+    ("\u2011", "-"),  # non-breaking hyphen
+    ("\u00ad", "-"),  # soft hyphen
+    ("\u2018", "'"),  # left single quotation mark
+    ("\u2019", "'"),  # right single quotation mark
+    ("\u201a", "'"),  # single low-9 quotation mark
+    ("\u201b", "'"),  # single high-reversed-9 quotation mark
+    ("\u201c", '"'),  # left double quotation mark
+    ("\u201d", '"'),  # right double quotation mark
+    ("\u201e", '"'),  # double low-9 quotation mark
+    ("\u2032", "'"),  # prime
+    ("\u2033", '"'),  # double prime
+    ("\u2026", "..."),  # ellipsis
+    ("\u00a0", " "),  # no-break space
+)
+
+
+def sanitize_cff_name_string(name: str) -> str:
+    """Sanitize human-readable CFF TopDict strings (FullName, FamilyName) to latin-1."""
+    if not name:
+        return name
+    for src, dst in _CFF_UNICODE_REPLACEMENTS:
+        name = name.replace(src, dst)
+    out: List[str] = []
+    for ch in name:
+        try:
+            ch.encode("latin-1")
+            out.append(ch)
+        except UnicodeEncodeError:
+            out.append("-")
+    return "".join(out)
+
+
+def _sanitize_for_cff_field(field_name: str, value: str) -> str:
+    if field_name == "FontName":
+        return sanitize_postscript(value)
+    return sanitize_cff_name_string(value)
 
 
 def build_id3(version: str, vendor: str, filename: str) -> str:
@@ -987,6 +1026,48 @@ def get_regular_equivalent_for_families(font_paths: list[str]) -> dict[str, str 
 
 # Variable font detection functions are now imported from FontCore.core_variable_font_detection
 
+# Split subfamily on the word "Variable" or "VariableItalic" (word boundaries)
+_RE_VARIABLE_WORD = re.compile(r"\bVariable(?:Italic)?\b", re.I)
+
+
+def split_variable_subfamily(subfamily: str | None) -> tuple[str, str]:
+    """Split subfamily into (prefix, suffix) around the word Variable or VariableItalic.
+
+    Prefix is text before the token, suffix is text after. Both are normalized
+    (strip, collapse spaces). Used for ID4 (prefix + suffix as third part) and
+    ID17 (prefix in fallback).
+
+    Examples:
+        "Black Variable" -> ("Black", "")
+        "Variable Black" -> ("", "Black")
+        "Black Variable Italic" -> ("Black", "Italic")
+        "VariableItalic" -> ("", "")
+    """
+    if not subfamily or not subfamily.strip():
+        return "", ""
+    s = str(subfamily).strip()
+    parts = _RE_VARIABLE_WORD.split(s, maxsplit=1)
+    prefix = " ".join(parts[0].strip().split()) if parts[0].strip() else ""
+    suffix = (
+        " ".join(parts[1].strip().split())
+        if len(parts) > 1 and parts[1].strip()
+        else ""
+    )
+    return prefix, suffix
+
+
+def strip_only_variable_token(text: str | None) -> str | None:
+    """Remove only the words Variable and VariableItalic (word boundaries). Do not remove VF/GX/Flex.
+
+    Used for ID1 variable so "Font Variable Black" -> "Font Black".
+    """
+    text = normalize_empty(text)
+    if is_empty(text):
+        return None
+    s = _RE_VARIABLE_WORD.sub(" ", str(text))
+    s = " ".join(s.split()).strip()
+    return normalize_empty(s)
+
 
 def strip_variable_tokens(text: str | None) -> str | None:
     """Strip Variable/VF/GX/Flex tokens from text."""
@@ -1027,15 +1108,28 @@ def variable_filename_fragment(family: str, is_italic: bool) -> str:
 
 
 def build_id17_variable_default(
-    is_italic: bool, slope_from_filename: str = None
+    is_italic: bool,
+    slope_from_filename: str | None = None,
+    prefix_from_filename: str | None = None,
 ) -> str:
-    """Build ID17 for variable fonts, respecting filename-based slope over italic detection."""
-    if slope_from_filename:
-        # Use filename-based slope instead of italic detection
-        return f"Regular {slope_from_filename}"
-    else:
-        # Fall back to italic detection only if no filename slope
-        return "Regular Italic" if is_italic else "Regular"
+    """Build ID17 for variable fonts from filename-derived prefix/slope or italic detection.
+
+    prefix_from_filename: part before "Variable" in subfamily (e.g. Black, Bold).
+    slope_from_filename: part after "Variable" or slope term (e.g. Italic).
+    If the only part is a slope term (Italic/Oblique/Slanted), prefix with "Regular ".
+    """
+    slope = slope_from_filename
+    if slope is None and is_italic:
+        slope = "Italic"
+    prefix = normalize_empty(prefix_from_filename)
+    slope_n = normalize_empty(slope)
+    combined = join_nonempty(prefix, slope_n)
+    if not combined:
+        return "Regular"
+    # Pure slope term -> prefix with "Regular "
+    if slope_n and not prefix and slope_n.strip().lower() in {"italic", "oblique", "slanted"}:
+        return f"Regular {slope_n}"
+    return combined
 
 
 def ensure_regular_prefix_for_pure_slope(subfamily: str | None) -> str | None:
@@ -1080,17 +1174,110 @@ def get_name_string_win_english(font: Any, name_id: int) -> str | None:
         return None
 
 
+def sanitize_nametable_string(value: str) -> str:
+    """Strip control chars (incl. DEL) from a decoded namerecord; collapse outer whitespace."""
+    if not value:
+        return ""
+    out: List[str] = []
+    for ch in value:
+        o = ord(ch)
+        if o == 0x7F or (o < 0x20 and ch not in "\t\n\r"):
+            continue
+        out.append(ch)
+    return "".join(out).strip()
+
+
+def coerce_usable_nametable_string(raw: str | None) -> str | None:
+    """
+    Windows name slots are often populated with placeholders (``.``, ``.&`` with control chars)
+    while Mac records remain valid. Return a cleaned display string only if it has real content
+    (at least one Unicode letter or digit).
+    """
+    if raw is None:
+        return None
+    cleaned = sanitize_nametable_string(str(raw))
+    if not cleaned:
+        return None
+    if not any(ch.isalnum() for ch in cleaned):
+        return None
+    return cleaned
+
+
+def get_name_string_unicode_fallback(font: Any, name_id: int) -> str | None:
+    """
+    Prefer Windows UCS-2 English (US), then fall back to other namerecords.
+
+    If the Windows string decodes but is placeholder junk (``.``, control glyphs, punctuation
+    without letters), it is skipped and Macintosh / other platforms are considered—matching
+    real-world subsets where Mac names were preserved while Windows IDs were rewritten.
+    """
+    win_raw = get_name_string_win_english(font, name_id)
+    win = coerce_usable_nametable_string(win_raw)
+    if win:
+        return win
+
+    tbl = getattr(font.get("name", None), "names", None)
+    if not tbl:
+        return None
+
+    def sort_key(rec: Any) -> tuple:
+        lid = getattr(rec, "langID", 0) or 0
+        pid, eid = int(rec.platformID), int(rec.platEncID)
+        try:
+            lid = int(lid)
+        except Exception:
+            lid = 0
+        if pid == 3 and eid == 1 and lid == 0x409:
+            return (0, 0, 0)
+        if pid == 3 and eid in (1, 10):
+            return (1, lid, eid)
+        if pid == 3:
+            return (2, eid, lid)
+        if pid == 1:
+            return (3, lid, eid)
+        return (9, pid, eid, lid)
+
+    candidates: list[tuple[tuple, str]] = []
+    for rec in tbl:
+        if int(rec.nameID) != name_id:
+            continue
+        try:
+            txt = rec.toUnicode()
+        except Exception:
+            try:
+                bs = getattr(rec, "string", b"")
+                if isinstance(bs, bytes):
+                    txt = bs.decode("latin-1", errors="replace")
+                else:
+                    txt = str(bs)
+            except Exception:
+                continue
+        txt_ok = coerce_usable_nametable_string(txt)
+        if not txt_ok:
+            continue
+        candidates.append((sort_key(rec), txt_ok))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0])
+    return candidates[0][1]
+
+
 def _update_cff_topdict_field(top, field_name: str, value: str) -> bool:
     """Update a single CFF TopDict field if different."""
     if not value:
         return False
 
+    safe_value = _sanitize_for_cff_field(field_name, value)
+    if not safe_value:
+        return False
+
     current = getattr(top, field_name, None)
-    if current == value:
+    if current == safe_value:
         return False
 
     try:
-        setattr(top, field_name, value)
+        setattr(top, field_name, safe_value)
         return True
     except Exception:
         return False

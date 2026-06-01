@@ -71,6 +71,7 @@ class VariableFontAnalysis:
     is_variable: bool
     has_fvar: bool
     has_stat: bool
+    has_design_axis_record: bool = False
     has_avar: bool = False
     has_mvar: bool = False
     axis_count: int = 0
@@ -103,6 +104,7 @@ class VariableFontAnalysis:
             "is_technically_valid": self.is_technically_valid,
             "has_fvar": self.has_fvar,
             "has_stat": self.has_stat,
+            "has_design_axis_record": self.has_design_axis_record,
             "has_avar": self.has_avar,
             "has_mvar": self.has_mvar,
             "axis_count": self.axis_count,
@@ -110,6 +112,39 @@ class VariableFontAnalysis:
             "instance_count": self.instance_count,
             "issues": self.issues,
         }
+
+
+def _has_design_axis_record(font: Any, has_stat: bool) -> bool:
+    """True when STAT has a non-empty DesignAxisRecord (required for AxisValues)."""
+    if not has_stat:
+        return False
+    try:
+        stat_table = font["STAT"].table
+        return (
+            hasattr(stat_table, "DesignAxisRecord")
+            and stat_table.DesignAxisRecord is not None
+            and len(stat_table.DesignAxisRecord.Axis) > 0
+        )
+    except Exception as e:
+        logger.debug(f"Error checking STAT DesignAxisRecord: {e}")
+        return False
+
+
+def _has_design_axis_record_ttx(root: Any, has_stat: bool) -> bool:
+    """TTX equivalent of _has_design_axis_record."""
+    if not has_stat:
+        return False
+    try:
+        stat = root.find(".//STAT")
+        if stat is None:
+            return False
+        design_axis = stat.find(".//DesignAxisRecord")
+        if design_axis is None:
+            return False
+        return len(design_axis.findall(".//Axis")) > 0
+    except Exception as e:
+        logger.debug(f"Error checking TTX STAT DesignAxisRecord: {e}")
+        return False
 
 
 def _check_table_presence(font: Any, table_tag: str) -> bool:
@@ -266,6 +301,7 @@ def analyze_variable_font(
     # Check table presence
     has_fvar = _check_table_presence(font, "fvar")
     has_stat = _check_table_presence(font, "STAT")
+    has_design_axis_record = _has_design_axis_record(font, has_stat)
     has_avar = _check_table_presence(font, "avar")
     has_mvar = _check_table_presence(font, "MVAR")
 
@@ -304,6 +340,7 @@ def analyze_variable_font(
         is_variable=is_variable,
         has_fvar=has_fvar,
         has_stat=has_stat,
+        has_design_axis_record=has_design_axis_record,
         has_avar=has_avar,
         has_mvar=has_mvar,
         axis_count=axis_count,
@@ -373,6 +410,7 @@ def analyze_variable_font_ttx(
         # Check table presence
         has_fvar = root.find(".//fvar") is not None
         has_stat = root.find(".//STAT") is not None
+        has_design_axis_record = _has_design_axis_record_ttx(root, has_stat)
         has_avar = root.find(".//avar") is not None
         has_mvar = root.find(".//MVAR") is not None
 
@@ -430,6 +468,7 @@ def analyze_variable_font_ttx(
             is_variable=is_variable,
             has_fvar=has_fvar,
             has_stat=has_stat,
+            has_design_axis_record=has_design_axis_record,
             has_avar=has_avar,
             has_mvar=has_mvar,
             axis_count=axis_count,
@@ -444,6 +483,7 @@ def analyze_variable_font_ttx(
             is_variable=False,
             has_fvar=False,
             has_stat=False,
+            has_design_axis_record=False,
             issues=[f"Analysis failed: {e}"],
         )
 

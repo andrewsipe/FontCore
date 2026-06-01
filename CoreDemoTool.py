@@ -243,6 +243,125 @@ def demo_console_styles():
     cs.status_message(cs.SUCCESS_LABEL, "All files validated successfully", console)
     cs.emit("")
 
+    # StatusIndicator Class Examples
+    cs.emit(
+        "\n\n[bold deep_sky_blue1]═══ StatusIndicator Class ═══[/bold deep_sky_blue1]\n"
+        if cs.RICH_AVAILABLE
+        else "=== StatusIndicator Class ==="
+    )
+    cs.emit("  Basic usage:", console=console)
+    cs.emit(
+        f"    {cs.StatusIndicator('updated').add_file('font.otf').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('error').add_file('font.otf').with_explanation('permission denied').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('success').add_file('font.otf').build()}",
+        console=console,
+    )
+    cs.emit("", console=console)
+
+    cs.emit("  NameID operations:", console=console)
+    cs.emit(
+        f"    {cs.StatusIndicator('updated').add_field('nameID', 1).add_file('font.otf').add_values('OldName', 'NewName').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('created').add_field('nameID', 2).add_file('font.otf').add_values(value='NewName').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('unchanged').add_field('nameID', 3).add_file('font.otf').add_values(value='CurrentName').build()}",
+        console=console,
+    )
+    cs.emit("", console=console)
+
+    cs.emit("  Style overrides:", console=console)
+    cs.emit(
+        f"    {cs.StatusIndicator('unchanged').add_field('nameID', 1, style='bold turquoise2').add_file('font.otf').add_values(value='CurrentValue', style='bold').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('info').add_message('Important!', style='bold hot_pink').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('warning').add_file('font.otf').with_explanation('Missing records', style='dim').add_item('nameID 1 not found', style='bold red').build()}",
+        console=console,
+    )
+    cs.emit("", console=console)
+
+    cs.emit("  Dry-run mode (DRY prefix):", console=console)
+    cs.emit(
+        f"    {cs.StatusIndicator('updated', dry_run=True).add_file('font.otf').add_values('OldName', 'NewName').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('info', dry_run=True).add_message('Preview mode - no changes will be made').build()}",
+        console=console,
+    )
+    cs.emit(
+        f"    {cs.StatusIndicator('warning', dry_run=True).add_file('font.otf').with_explanation('Would update if not dry-run').build()}",
+        console=console,
+    )
+    cs.emit("", console=console)
+
+    cs.emit("  All status types:", console=console)
+    for status in [
+        "updated",
+        "created",
+        "unchanged",
+        "deleted",
+        "parsing",
+        "saved",
+        "success",
+        "info",
+        "warning",
+        "error",
+        "skipped",
+        "duplicate",
+        "cache",
+        "discovered",
+        "mapping",
+        "minimal",
+        "moderate",
+        "major",
+        "preview",
+    ]:
+        cs.emit(
+            f"    {cs.StatusIndicator(status).add_file('font.otf').build()}",
+            console=console,
+        )
+    cs.emit("", console=console)
+
+    # High-Level Helpers
+    cs.emit(
+        "\n\n[bold deep_sky_blue1]═══ High-Level Helpers ═══[/bold deep_sky_blue1]\n"
+        if cs.RICH_AVAILABLE
+        else "=== High-Level Helpers ==="
+    )
+    cs.fmt_preflight_checklist(
+        "NameID 1 Replacer",
+        [
+            cs.fmt_operation_description("Replace", "nameID 1 (Font Family)"),
+            cs.fmt_operation_description("Update", "family names from filename"),
+        ],
+        console=console,
+    )
+    cs.emit("", console=console)
+
+    cs.fmt_processing_summary(
+        dry_run=False,
+        updated=35,
+        unchanged=3,
+        errors=2,
+        console=console,
+        additional_info=["Demo completed successfully"],
+    )
+
     # End
     cs.fmt_header("Demo Complete - All Features Displayed", console)
 
@@ -291,7 +410,11 @@ def demo_font_sorter(files: List[str], args: argparse.Namespace):
         # Create font info objects
         font_infos = create_font_info_from_paths(font_files, extract_metadata=True)
 
-    sorter = FontSorter(font_infos)
+    # Collect ignore_terms for normalization (works in both family and superfamily modes)
+    ignore_terms = set(getattr(args, "ignore_term", []) or [])
+
+    # Pass ignore_terms to constructor (normalizes names upfront)
+    sorter = FontSorter(font_infos, ignore_terms=ignore_terms)
 
     # Show detailed info if requested
     if getattr(args, "info", False):
@@ -300,6 +423,10 @@ def demo_font_sorter(files: List[str], args: argparse.Namespace):
             cs.emit(f"\n{Path(font_info.path).name}:")
             cs.emit(f"  Path: {font_info.path}")
             cs.emit(f"  Family: {font_info.family_name}")
+            # Show normalized name if different
+            normalized = sorter.get_normalized_name(font_info)
+            if normalized != font_info.family_name:
+                cs.emit(f"  Normalized: {normalized} (prefixes ignored)")
             if font_info.vendor:
                 cs.emit(f"  Manufacturer: {font_info.vendor}")
             if font_info.vendor_id:
@@ -313,7 +440,6 @@ def demo_font_sorter(files: List[str], args: argparse.Namespace):
     if getattr(args, "superfamily", False):
         cs.emit(f"\n{cs.INFO_LABEL} {cs.fmt_smart_underline('Superfamily Grouping')}")
         groups = sorter.group_by_superfamily(
-            ignore_terms=getattr(args, "ignore_term", []),
             exclude_families=getattr(args, "exclude_family", []),
         )
         group_type = "superfamily"

@@ -292,7 +292,9 @@ def _is_alphanumeric_token(token: str) -> bool:
     return bool(token) and token[0].isalpha()
 
 
-def apply_spacing_rules(tokens: List[str]) -> List[str]:
+def apply_spacing_rules(
+    tokens: List[str], segment_boundaries: List[int] = None
+) -> List[str]:
     """Apply contextual spacing rules to formatted tokens.
 
     Contextual spacing principle: Only add spaces when adjacent tokens exist
@@ -304,8 +306,9 @@ def apply_spacing_rules(tokens: List[str]) -> List[str]:
     - %: No space before if previous token exists and is numeric; space after ONLY if next token exists and starts with letter/word
     - $: No space after if next token exists and is numeric; no space before if previous token exists and is numeric;
          otherwise treat as leading-space char (space before ONLY if previous token exists and is alphanumeric)
-    - * and @: No spacing on either side, regardless of context
+    - * and @: No spacing on either side, UNLESS crossing a segment boundary (underscore separator)
     - Regular tokens: Space before if previous token exists and allows spacing
+    - Segment boundaries: Always add space between segments separated by underscores
     """
     if not tokens:
         return []
@@ -315,17 +318,25 @@ def apply_spacing_rules(tokens: List[str]) -> List[str]:
     if not tokens:
         return []
 
+    # Normalize segment_boundaries to a set for fast lookup
+    segment_boundary_set = set(segment_boundaries) if segment_boundaries else set()
+
     result = []
 
     for i, token in enumerate(tokens):
         prev_token = tokens[i - 1] if i > 0 else None
         next_token = tokens[i + 1] if i + 1 < len(tokens) else None
+        is_segment_start = i in segment_boundary_set
 
         # Determine if we need space before this token
         needs_space_before = False
         if prev_token:
-            if token in NO_SPACE:
-                # No-space chars never get space before
+            # Special case: if this is the start of a new segment, always add space
+            # (underscores should create word breaks)
+            if is_segment_start:
+                needs_space_before = True
+            elif token in NO_SPACE:
+                # No-space chars never get space before (unless segment boundary)
                 needs_space_before = False
             elif token in TRAILING_SPACE:
                 # Trailing-space chars never get space before (space goes after them)
@@ -347,7 +358,7 @@ def apply_spacing_rules(tokens: List[str]) -> List[str]:
                 if _is_alphanumeric_token(prev_token):
                     needs_space_before = True
             elif prev_token in NO_SPACE:
-                # Previous is no-space char, no space
+                # Previous is no-space char, no space (unless segment boundary handled above)
                 needs_space_before = False
             elif prev_token in TRAILING_SPACE:
                 # Previous is trailing-space char, already has space after it
@@ -419,7 +430,8 @@ def format_pascal_words(value: str) -> str:
 
     # Tokenize each segment and format tokens
     formatted_tokens = []
-    for segment in segments:
+    segment_boundaries = []  # Track indices where new segments start
+    for segment_idx, segment in enumerate(segments):
         segment_tokens = tokenize_pascal_case(segment)
 
         # Merge digit sequences followed by lowercase-only tokens
@@ -457,10 +469,15 @@ def format_pascal_words(value: str) -> str:
                     # Normal formatting (preserves all-caps, Title Cases others)
                     segment_formatted.append(_format_token(token))
 
+        # Mark segment boundary (first token of this segment)
+        if segment_formatted:
+            segment_boundaries.append(len(formatted_tokens))
         formatted_tokens.extend(segment_formatted)
 
-    # Apply spacing rules to the combined token list
-    spaced_tokens = apply_spacing_rules(formatted_tokens)
+    # Apply spacing rules to the combined token list, with segment boundary information
+    spaced_tokens = apply_spacing_rules(
+        formatted_tokens, segment_boundaries=segment_boundaries
+    )
 
     # Join with empty string since spacing is now explicit in tokens
     return "".join(spaced_tokens).strip()

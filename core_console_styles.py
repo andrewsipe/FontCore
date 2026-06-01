@@ -26,17 +26,10 @@ otherwise, they fall back to plain text with no markup.
 Demo and Testing:
     Run 'python CoreDemoTool.py console' to see a comprehensive showcase of all
     available labels, formatting helpers, and styling capabilities.
-
-Maintenance Note:
-    IMPORTANT: When adding new labels, formatting functions, or styling features to this module,
-    you MUST update the _run_demo() function to showcase the new functionality.
-    The demo is used by CoreDemoTool.py console subcommand and should always reflect
-    the complete feature set of this module.
 """
 
 from __future__ import annotations
 
-import importlib.util as importlib_util
 from typing import Optional
 from pathlib import Path
 import re
@@ -44,113 +37,51 @@ import re
 # Enhanced functionality import
 from FontCore.core_logging_config import get_logger
 
-logger = get_logger(__name__)
-
-# ============================================================================
-# CONFIGURATION & AVAILABILITY
-# ============================================================================
-# Core configuration settings for console behavior and styling
-CONSOLE_CONFIG = {
-    "label_width": 11,  # width for labels (keeps alignment)
-    "indent_size": 12,  # base indent spaces
-    "use_rich": True,  # set False to force non-rich fallback
-    "use_questionary": True,  # set False to force non-questionary fallback
-    "theme_mode": "dark",  # "dark" or "light"
-}
-
-RICH_AVAILABLE: bool = (
-    importlib_util.find_spec("rich") is not None
-    if CONSOLE_CONFIG["use_rich"]
-    else False
+# Import configuration, theme, and labels from config module
+import FontCore.core_console_config as _config
+from FontCore.core_console_config import (
+    CONSOLE_CONFIG,
+    RICH_AVAILABLE,
+    CUSTOM_THEME,
+    _Console,
+    Panel,
+    _Table,
+    box,
+    Align,
+    _Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+    # Labels are re-exported for backward compatibility (scripts import from core_console_styles)
+    INFO_LABEL,  # noqa: F401
+    UPDATED_LABEL,  # noqa: F401
+    UNCHANGED_LABEL,  # noqa: F401
+    ERROR_LABEL,  # noqa: F401
+    WARNING_LABEL,  # noqa: F401
+    SAVED_LABEL,  # noqa: F401
+    CREATED_LABEL,  # noqa: F401
+    REMOVED_LABEL,  # noqa: F401
+    INPUT_LABEL,  # noqa: F401
+    PREVIEW_LABEL,  # noqa: F401
+    PARSING_LABEL,  # noqa: F401
+    SUCCESS_LABEL,  # noqa: F401
+    SKIPPED_LABEL,  # noqa: F401
+    DUPLICATE_LABEL,  # noqa: F401
+    CACHE_LABEL,  # noqa: F401
+    DISCOVERED_LABEL,  # noqa: F401
+    MAPPING_LABEL,  # noqa: F401
+    MINIMAL_LABEL,  # noqa: F401
+    MODERATE_LABEL,  # noqa: F401
+    MAJOR_LABEL,  # noqa: F401
+    INDENT,
+    STATUS_THEMES,
+    DRY_LABEL,
+    PRE_LABEL_INDENT,
 )
 
-if RICH_AVAILABLE:
-    from rich.console import Console as _Console
-    from rich.theme import Theme
-    from rich.panel import Panel
-    from rich.table import Table as _Table
-    from rich import box
-    from rich.align import Align
-    from rich.progress import (
-        Progress as _Progress,
-        SpinnerColumn,
-        TextColumn,
-        BarColumn,
-        TaskProgressColumn,
-        TimeElapsedColumn,
-    )
-
-# ============================================================================
-# THEME DEFINITION
-# ============================================================================
-# Custom Rich theme for consistent styling across all console output
-if RICH_AVAILABLE:
-    try:
-        CUSTOM_THEME = Theme(
-            {
-                # Text colors
-                "darktext": "#282a39",
-                "lighttext": "grey100",
-                # Label backgrounds
-                "info": "dodger_blue1",
-                "info.bright": "deep_sky_blue1",
-                "updated": "magenta2",
-                "unchanged": "turquoise2",
-                "error": "red3",
-                "warning": "gold1",
-                "saved": "green",
-                "created": "cornflower_blue",
-                "removed": "medium_violet_red",
-                "input": "cornsilk1",
-                "parsing": "grey37",
-                "success": "green_yellow",
-                "preview": "gold3",
-                "skipped": "orange1",
-                "duplicate": "yellow3",
-                "cache": "purple4",
-                "discovered": "magenta",
-                "mapping": "cyan3",
-                "minimal": "cyan2",
-                "moderate": "cyan3",
-                "major": "turquoise4",
-                "header": "deep_sky_blue1",
-                # Content styling
-                "value.before": "turquoise2",
-                "value.after": "magenta2",
-                "value.unchanged": "dim turquoise2",
-                "file.name": "green",
-                "file.path": "grey37",
-                "count": "bold turquoise2",
-                "field": "honeydew2",
-                "field.number": "bold honeydew2",
-                # Progress bar styling
-                "bar.complete": "magenta3",
-                "bar.finished": "magenta2",
-                "bar.pulse": "medium_violet_red",
-                "progress.description": "dodger_blue1",
-                "progress.percentage": "bold turquoise2",
-                "progress.elapsed": "dodger_blue3",
-                "progress.remaining": "dodger_blue3",
-                # These are Rich's internal fallback color names:
-                "repr.number": "bold turquoise2",
-                "repr.str": "grey100",
-                "repr.bool_true": "italic spring_green3",
-                "repr.bool_false": "italic deep_pink2",
-                "repr.path": "grey37",
-                "repr.filename": "green",
-                "repr.file": "none",
-                "repr.call": "none",
-                "repr.tag_name": "hot_pink",
-            }
-        )
-    except Exception as e:
-        logger.error(f"Failed to initialize custom theme: {e}")
-        # Fallback to default theme
-        CUSTOM_THEME = Theme({})
-
-    # Module-level console singleton
-    _console_singleton: Optional[_Console] = None
-
+logger = get_logger(__name__)
 
 # ============================================================================
 # CONSOLE INFRASTRUCTURE
@@ -162,15 +93,14 @@ def get_console() -> Optional["_Console"]:
     """
     Get the Rich console instance if available, otherwise None.
     """
-    global _console_singleton
     if RICH_AVAILABLE:
-        if _console_singleton is None:
+        if _config._console_singleton is None:
             try:
-                _console_singleton = _Console(theme=CUSTOM_THEME)
+                _config._console_singleton = _Console(theme=CUSTOM_THEME)
             except Exception as e:
                 logger.warning(f"Failed to initialize Rich console: {e}")
                 return None
-        return _console_singleton
+        return _config._console_singleton
     else:
         logger.debug("Rich not available, using plain text output")
     return None
@@ -191,6 +121,43 @@ def emit(
         print(clean_message, end=end)
 
 
+def emit_spacer(lines: int = 1, console: Optional["_Console"] = None) -> None:
+    """
+    Emit one or more blank lines for visual separation.
+
+    Args:
+        lines: Number of blank lines to emit (default: 1)
+        console: Optional console instance
+    """
+    for _ in range(lines):
+        emit("", console=console)
+
+
+def emit_section_break(console: Optional["_Console"] = None) -> None:
+    """
+    Emit a visual section break (2 blank lines).
+
+    Args:
+        console: Optional console instance
+    """
+    emit_spacer(2, console=console)
+
+
+def emit_section_separator(
+    char: str = "─", length: int = 60, console: Optional["_Console"] = None
+) -> None:
+    """
+    Emit a visual separator line.
+
+    Args:
+        char: Character to use for separator (default: "─")
+        length: Length of separator line (default: 60)
+        console: Optional console instance
+    """
+    separator = char * length
+    emit(separator, console=console)
+
+
 def indent(level: int = 1, additional: int = 0) -> str:
     """
     Generate indentation for hierarchical output with natural wrapping support.
@@ -205,74 +172,55 @@ def indent(level: int = 1, additional: int = 0) -> str:
     return " " * total_spaces
 
 
+def get_pre_label_indent() -> str:
+    """
+    Get the dedicated indent for non-status indenting scenarios.
+
+    Uses pre_label_indent (6 spaces) from CONSOLE_CONFIG, which is separate
+    from the regular indent_size (12 spaces) used for status messages.
+
+    Returns:
+        Pre-label indent string (6 spaces by default)
+    """
+    return PRE_LABEL_INDENT
+
+
+# Unicode symbol constants
+ARROW = "→"
+BULLET = "•"
+EM_DASH = "—"
+
+
 def bullet(text: str, level: int = 1) -> str:
     """
     Render a simple bullet line at the given indentation level.
     """
-    return f"{indent(level)}• {text}"
+    return f"{indent(level)}{BULLET} {text}"
 
 
 def bulleted_kv(key: str, value: str | int, level: int = 1) -> str:
     """
     Render an indented bullet with a key: value pair.
     """
-    return f"{indent(level)}• {key}: {fmt_count(value) if isinstance(value, int) else value}"
+    return f"{indent(level)}{BULLET} {key}: {fmt_count(value) if isinstance(value, int) else value}"
 
 
-# ============================================================================
-# STATUS LABELS
-# ============================================================================
-# Pre-formatted status labels for consistent console output
-
-
-def _build_status_label(
-    text: str, foreground_theme_key: str, background_theme_key: str = "lighttext"
-) -> str:
+def fmt_bullet_list(items: list[str], indent_level: int = 1) -> str:
     """
-    Build a formatted status label using theme colors.
+    Format a list of items as indented bullets.
 
     Args:
-        text: The label text to display
-        foreground_theme_key: Theme key for foreground color
-        background_theme_key: Theme key for background color
+        items: List of strings to format as bullets
+        indent_level: Indentation level (1=12 spaces, 2=14 spaces, etc.)
+
+    Returns:
+        Formatted string with each item on a new line with bullet
+
+    Example:
+        >>> fmt_bullet_list(["Item 1", "Item 2", "Item 3"])
+        "            • Item 1\n            • Item 2\n            • Item 3"
     """
-    width = CONSOLE_CONFIG.get("label_width", 11)
-    if RICH_AVAILABLE:
-        # Look up colors from the theme
-        foreground_color = CUSTOM_THEME.styles.get(
-            foreground_theme_key, "yellow1"
-        )  # yellow1 is fallback foreground
-        background_color = CUSTOM_THEME.styles.get(
-            background_theme_key, "red3"
-        )  # red3 is fallback background
-        return f"[bold {foreground_color} on {background_color}]{text:<{width}}[/bold {foreground_color} on {background_color}]"
-    return f"{text:<{width}}"
-
-
-# Status label constants
-INFO_LABEL: str = _build_status_label(" INFO", "lighttext", "info")
-UPDATED_LABEL: str = _build_status_label(" UPDATED", "darktext", "updated")
-UNCHANGED_LABEL: str = _build_status_label(" NO CHANGE", "darktext", "unchanged")
-ERROR_LABEL: str = _build_status_label(" ERROR", "lighttext", "error")
-WARNING_LABEL: str = _build_status_label(" WARNING", "darktext", "warning")
-SAVED_LABEL: str = _build_status_label(" SAVED TO", "darktext", "saved")
-CREATED_LABEL: str = _build_status_label(" CREATED", "lighttext", "created")
-REMOVED_LABEL: str = _build_status_label(" REMOVED", "darktext", "removed")
-INPUT_LABEL: str = _build_status_label(" INPUT", "darktext", "input")
-PREVIEW_LABEL: str = _build_status_label(" PREVIEW", "darktext", "preview")
-PARSING_LABEL: str = _build_status_label(" PARSING", "lighttext", "parsing")
-SUCCESS_LABEL: str = _build_status_label(" SUCCESS", "darktext", "success")
-SKIPPED_LABEL: str = _build_status_label(" SKIPPED", "darktext", "skipped")
-DUPLICATE_LABEL: str = _build_status_label(" DUPLICATE", "darktext", "duplicate")
-CACHE_LABEL: str = _build_status_label(" CACHE", "lighttext", "cache")
-DISCOVERED_LABEL: str = _build_status_label(" FOUND", "darktext", "discovered")
-MAPPING_LABEL: str = _build_status_label(" MAPPING", "darktext", "mapping")
-MINIMAL_LABEL: str = _build_status_label(" MINIMAL", "darktext", "minimal")
-MODERATE_LABEL: str = _build_status_label(" MODERATE", "darktext", "moderate")
-MAJOR_LABEL: str = _build_status_label(" MAJOR", "lighttext", "major")
-
-# Indentation constant
-INDENT: str = " " * CONSOLE_CONFIG.get("indent_size", 12)
+    return "\n".join(f"{indent(indent_level)}{BULLET} {item}" for item in items)
 
 
 # ============================================================================
@@ -290,7 +238,7 @@ def fmt_change(old_value: str, new_value: str) -> str:
         "Arial-Bold → Helvetica-Bold"  # (with color: before=turquoise, after=magenta)
     """
     if RICH_AVAILABLE:
-        return f"[value.before]{old_value}[/value.before] → [value.after]{new_value}[/value.after]"
+        return f"[value.before]{old_value}[/value.before] {ARROW} [value.after]{new_value}[/value.after]"
     return f"{old_value} -> {new_value}"
 
 
@@ -381,6 +329,26 @@ def fmt_file_compact(path: str) -> str:
         "/path/to/MyFont-Bold.otf"  # (with dimmed path + green filename)
     """
     return fmt_file(path, filename_only=False)
+
+
+def fmt_kv_pair(key: str, value: str | int) -> str:
+    """
+    Format a single key-value pair consistently.
+
+    Args:
+        key: The key name
+        value: The value (string or integer)
+
+    Returns:
+        Formatted key-value pair string
+
+    Example:
+        >>> fmt_kv_pair("nameID", 1)
+        "nameID: 1"
+        >>> fmt_kv_pair("Version", "1.000")
+        "Version: 1.000"
+    """
+    return fmt_field(key, value)
 
 
 def fmt_smart_underline(text: str) -> str:
@@ -493,14 +461,16 @@ class StatusIndicator:
 
         # Dry-Run Mode:
             Pass dry_run=True to enable preview mode:
+            - Adds DRY prefix label before status label (warning yellow color)
             - Dims operational labels (updated, created, deleted, parsing)
             - Suppresses 'saved' messages entirely
-            - Info/warning/error labels remain normal
+            - Info/warning/error labels remain normal (not dimmed, but still show DRY prefix)
 
             Usage:
                 StatusIndicator("updated", dry_run=True)
                     .add_file("font.otf")
                     .emit()
+                    # Output: [DRY] [ UPDATED   ] font.otf
 
         # Style Parameter:
             All builder methods accept an optional style parameter:
@@ -516,137 +486,28 @@ class StatusIndicator:
                 .add_item("Note", style="bold red")
     """
 
-    STATUS_THEMES = {
-        "updated": {
-            "label": UPDATED_LABEL,
-            "template": "{context}",
-            "value_style": "after",
-            "show_change": True,
-        },
-        "created": {
-            "label": CREATED_LABEL,
-            "template": "{context}",
-            "value_style": "after",
-            "show_change": False,
-        },
-        "unchanged": {
-            "label": UNCHANGED_LABEL,
-            "template": "{context}",
-            "value_style": "unchanged",
-            "show_change": False,
-        },
-        "deleted": {
-            "label": REMOVED_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "parsing": {
-            "label": PARSING_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "saved": {
-            "label": SAVED_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "success": {
-            "label": SUCCESS_LABEL,
-            "template": "{context}{details}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "info": {
-            "label": INFO_LABEL,
-            "template": "{context}{details}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "warning": {
-            "label": WARNING_LABEL,
-            "template": "{context}{details}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "error": {
-            "label": ERROR_LABEL,
-            "template": "{context}: {details}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "skipped": {
-            "label": SKIPPED_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "duplicate": {
-            "label": DUPLICATE_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "cache": {
-            "label": CACHE_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "discovered": {
-            "label": DISCOVERED_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "mapping": {
-            "label": MAPPING_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "minimal": {
-            "label": MINIMAL_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "moderate": {
-            "label": MODERATE_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "major": {
-            "label": MAJOR_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-        "preview": {
-            "label": PREVIEW_LABEL,
-            "template": "{context}",
-            "value_style": "plain",
-            "show_change": False,
-        },
-    }
-
     # --- STAGE 1: INITIALIZATION ---
     def __init__(self, status: str, dry_run: bool = False):
-        if status not in self.STATUS_THEMES:
-            available = ", ".join(sorted(self.STATUS_THEMES.keys()))
+        if status not in STATUS_THEMES:
+            available = ", ".join(sorted(STATUS_THEMES.keys()))
             raise ValueError(f"Unknown status: '{status}'. Available: {available}")
+
         self.status = status
-        self.theme = self.STATUS_THEMES[status]
+        self.theme = STATUS_THEMES[status]
+        self.dry_run = dry_run
+
+        # Core message components
         self.context_parts = []
         self.explanation = None
+
+        # Value display (for changes or single values)
         self.old_value = None
         self.new_value = None
         self.value = None
         self.value_style_override = None
-        self.dry_run = dry_run
+
+        # Optional step log (for detailed operation tracking)
+        self.step_log = None
 
     # --- STAGE 2: CORE CONTEXT BUILDERS (Builds Left-to-Right) ---
     def _apply_style(self, content: str, style: str = None) -> str:
@@ -673,7 +534,12 @@ class StatusIndicator:
             filepath: Path to the file
             filename_only: If True, show only filename; if False, show full path
             style: Optional Rich style to apply to the file path (e.g., "reverse")
+                   If None and status is "saved", automatically applies "reverse" style
         """
+        # Automatically apply reverse style for "saved" status if no explicit style provided
+        if style is None and self.status == "saved":
+            style = "reverse #29A329"
+
         if style:
             # Apply custom style to the file path
             if filename_only:
@@ -734,17 +600,23 @@ class StatusIndicator:
         return self
 
     # --- STAGE 4: DETAIL APPENDERS (Builds Top-to-Bottom) ---
-    def with_explanation(self, message: str, style: str = None):
+    def with_explanation(self, message: str | list[str], style: str = None):
         """
         Add a primary trailing message or reason.
 
         Often used with 'error' or 'info' statuses to provide context.
+        Accepts both strings and lists, auto-formatting lists as bullet points.
 
         Args:
-            message: The explanation text
+            message: The explanation text (string) or list of items (list[str])
             style: Optional Rich style to apply (e.g., "dim", "bold red")
         """
-        self.explanation = self._apply_style(message, style)
+        if isinstance(message, list):
+            # Format list as bullet points
+            formatted = fmt_bullet_list(message, indent_level=1)
+            self.explanation = self._apply_style(formatted, style)
+        else:
+            self.explanation = self._apply_style(message, style)
         return self
 
     def add_item(self, text: str, indent_level: int = 1, style: str = None):
@@ -762,6 +634,41 @@ class StatusIndicator:
         self.context_parts.append(f"\n{indent(indent_level)}{styled_text}")
         return self
 
+    def add_bullet_list(
+        self, items: list[str], indent_level: int = 1, style: str = None
+    ):
+        """
+        Add multiple items as a bullet list to StatusIndicator.
+
+        Args:
+            items: List of strings to add as bullets
+            indent_level: Indentation level (1=12 spaces, 2=14 spaces, etc.)
+            style: Optional Rich style to apply to all items (e.g., "dim", "bold")
+        """
+        formatted = fmt_bullet_list(items, indent_level)
+        if style:
+            formatted = self._apply_style(formatted, style)
+        self.context_parts.append(f"\n{formatted}")
+        return self
+
+    def add_kv_pairs(
+        self, pairs: dict[str, str | int], indent_level: int = 1, style: str = None
+    ):
+        """
+        Add key-value pairs as formatted items.
+
+        Args:
+            pairs: Dictionary of key-value pairs to add
+            indent_level: Indentation level (1=12 spaces, 2=14 spaces, etc.)
+            style: Optional Rich style to apply to all pairs (e.g., "dim", "bold")
+        """
+        for key, value in pairs.items():
+            kv_text = fmt_kv_pair(key, value)
+            if style:
+                kv_text = self._apply_style(kv_text, style)
+            self.context_parts.append(f"\n{indent(indent_level)}{kv_text}")
+        return self
+
     def add_step_log(self, step_log: list):
         """
         Add a step-by-step log of operations applied.
@@ -769,7 +676,7 @@ class StatusIndicator:
         Args:
             step_log: List of (operation_name, name_before, name_after) tuples
         """
-        self._step_log = step_log
+        self.step_log = step_log
         return self
 
     def with_summary_block(
@@ -782,17 +689,19 @@ class StatusIndicator:
         """
         Append a final, formatted block of statistics.
         """
+        # Add blank line before summary for better visual separation
+        indent_str = PRE_LABEL_INDENT if self.dry_run else INDENT
         summary_parts = [
             fmt_field("updated", updated),
             fmt_field("unchanged", unchanged),
             fmt_field("errors", errors),
         ]
         summary = " | ".join(summary_parts)
-        self.context_parts.append(f"\n{INDENT}{summary}")
+        self.context_parts.append(f"\n{indent_str}{summary}")
 
         if additional_info:
             for info in additional_info:
-                self.context_parts.append(f"\n{INDENT}{info}")
+                self.context_parts.append(f"\n{indent_str}{info}")
         return self
 
     def add_indent(self, level: int = 1, additional: int = 0):
@@ -800,57 +709,114 @@ class StatusIndicator:
         self.context_parts.append(f"\n{indent(level, additional)}")
         return self
 
-    # --- STAGE 5: FINALIZERS & STATE MODIFIERS ---
-    def build(self) -> str:
-        """Build the final formatted status message."""
-        # Suppress 'saved' messages in dry-run mode
+    # --- STAGE 5: BUILD & EMIT ---
+    def _format_label(self) -> str | None:
+        """Build the status label with dry-run dimming and DRY prefix if applicable."""
+        # Suppress 'saved' messages entirely in dry-run mode
         if self.dry_run and self.status == "saved":
-            return ""
+            return None
 
         label = self.theme["label"]
 
-        # Dim operational labels in dry-run mode (not info/warning/error)
+        # Dim operational labels in dry-run mode (not info/warning/error/parsing)
         if self.dry_run and self.status not in ["info", "warning", "error", "parsing"]:
             label = f"[dim]{label}[/dim]"
 
-        context = " ".join(self.context_parts)
-        # Ensure a single space between context and details when both present
-        details = self.explanation or ""
-        if (
-            details
-            and not details.startswith(" ")
-            and context
-            and "{context}{details}" in self.theme["template"]
-        ):
-            details = f" {details}"
-        message = self.theme["template"].format(context=context, details=details)
+        # Add DRY prefix when in dry-run mode
+        if self.dry_run:
+            return f"{DRY_LABEL} {label}"
 
+        return label
+
+    def _format_context_and_details(self) -> str:
+        """Build the context and details portion of the message."""
+        context = " ".join(self.context_parts)
+        details = self.explanation or ""
+
+        # Handle spacing between context and details based on template
+        template = self.theme["template"]
+        if "{context}{details}" in template:
+            # Template has no space between - add one if both exist
+            if context and details and not details.startswith(" "):
+                details = f" {details}"
+
+        return template.format(context=context, details=details)
+
+    def _get_indent(self) -> str:
+        """Get the appropriate indent based on dry-run mode."""
+        if self.dry_run:
+            # When dry_run=True, align with content after DRY + status labels
+            # Calculate: pre_label_width + space + label_width + space
+            pre_label_width = CONSOLE_CONFIG.get("pre_label_width", 4)
+            label_width = CONSOLE_CONFIG.get("label_width", 11)
+            total_width = pre_label_width + 1 + label_width + 1
+            return " " * total_width
+        else:
+            # When dry_run=False, use regular INDENT (aligns with content after status label)
+            return INDENT
+
+    def _format_values(self) -> str:
+        """Build the value display (changes or single values)."""
+        if not (self.old_value or self.new_value or self.value):
+            return ""
+
+        indent_str = self._get_indent()
+
+        # Handle old→new changes
         if self.theme["show_change"] and self.old_value and self.new_value:
             change_text = fmt_change(self.old_value, self.new_value)
             if self.value_style_override:
-                change_text = f"[{self.value_style_override}]{change_text}[/{self.value_style_override}]"
-            message += f"\n{INDENT} {change_text}"
-        elif hasattr(self, "value") and self.value:
+                change_text = self._apply_style(change_text, self.value_style_override)
+            # No extra space - indent_str already positions us at the right column
+            return f"\n{indent_str}{change_text}"
+
+        # Handle single values
+        if self.value:
+            # Use override style if provided, otherwise use theme's value_style
             style = self.value_style_override or self.theme.get("value_style", "plain")
-            value_text = fmt_value(self.value, style)
-            if self.value_style_override and style == "plain":
-                # Only wrap if we're overriding plain style
-                value_text = f"[{self.value_style_override}]{self.value}[/{self.value_style_override}]"
-            message += f"\n{INDENT} {value_text}"
 
-        # Add step log if present
-        if hasattr(self, "_step_log") and self._step_log:
-            for op_name, before, after in self._step_log:
-                # Only show if there's an actual change
-                if before != after:
-                    # Extract just the stem for cleaner display
-                    before_stem = Path(before).stem
-                    after_stem = Path(after).stem
+            # If we have a style override, just apply it directly
+            if self.value_style_override:
+                value_text = self._apply_style(
+                    str(self.value), self.value_style_override
+                )
+            else:
+                # Use fmt_value which applies theme styling
+                value_text = fmt_value(self.value, style)
 
-                    # Use fmt_change to highlight differences
-                    change_display = fmt_change(before_stem, after_stem)
-                    step_text = f"• {op_name}: {change_display}"
-                    message += f"\n{INDENT}  {step_text}"
+            # No extra space - indent_str already positions us at the right column
+            return f"\n{indent_str}{value_text}"
+
+        return ""
+
+    def _format_step_log(self) -> str:
+        """Build the step log display."""
+        if not self.step_log:
+            return ""
+
+        indent_str = self._get_indent()
+        result = []
+        for op_name, before, after in self.step_log:
+            # Only show if there's an actual change
+            if before != after:
+                before_stem = Path(before).stem
+                after_stem = Path(after).stem
+                change_display = fmt_change(before_stem, after_stem)
+                result.append(f"\n{indent_str}  {BULLET} {op_name}: {change_display}")
+
+        return "".join(result)
+
+    def build(self) -> str:
+        """Build the final formatted status message."""
+        # Get label (returns None if suppressed in dry-run)
+        label = self._format_label()
+        if label is None:
+            return ""
+
+        # Build message components
+        message = self._format_context_and_details()
+        message += self._format_values()
+        message += self._format_step_log()
 
         return f"{label} {message}"
 
@@ -1259,280 +1225,3 @@ def create_progress_bar(console: Optional[_Console] = None) -> _Progress:
     except Exception as e:
         logger.error(f"Failed to create progress bar: {e}")
         raise
-
-
-# ============================================================================
-# DEMO & TESTING
-# ============================================================================
-# Comprehensive showcase of all console styling features
-
-
-def _run_demo():
-    """
-    Comprehensive showcase of all console styling features.
-
-    Run with: python core_console_styles.py
-    or: python CoreDemoTool.py console
-    """
-    console = get_console()
-
-    # ========== STATUS LABELS ==========
-    fmt_header("STATUS LABELS", console=console)
-    emit(f"{INFO_LABEL} Information message", console=console)
-    emit(f"{UPDATED_LABEL} Record updated successfully", console=console)
-    emit(f"{UNCHANGED_LABEL} No changes detected", console=console)
-    emit(f"{ERROR_LABEL} Error condition occurred", console=console)
-    emit(f"{WARNING_LABEL} Warning message", console=console)
-    emit(f"{SAVED_LABEL} File saved successfully", console=console)
-    emit(f"{CREATED_LABEL} New record created", console=console)
-    emit(f"{INPUT_LABEL} User input prompt", console=console)
-    emit(f"{PARSING_LABEL} {fmt_file('font.otf')}", console=console)
-    emit(f"{SUCCESS_LABEL} Operation completed successfully", console=console)
-    emit(f"{SKIPPED_LABEL} Font file skipped", console=console)
-    emit(f"{DUPLICATE_LABEL} Duplicate detected (same size)", console=console)
-    emit(f"{CACHE_LABEL} Processing cache buffer", console=console)
-    emit(f"{DISCOVERED_LABEL} Font mapping discovered", console=console)
-    emit(f"{MAPPING_LABEL} Applying name from CSS", console=console)
-    emit("", console=console)
-
-    # ========== INDENTATION ==========
-    fmt_header("INDENTATION HIERARCHY", console=console)
-    emit(f"{INFO_LABEL} Root level item", console=console)
-    emit(f"{indent(1)}→ Level 1: immediate details (12 spaces)", console=console)
-    emit(f"{indent(2)}→ Level 2: sub-items (14 spaces)", console=console)
-    emit(f"{indent(3)}→ Level 3: sub-sub-items (16 spaces)", console=console)
-    emit(f"{indent(1, 4)}→ Level 1 with 4 extra spaces (16 total)", console=console)
-    emit("", console=console)
-
-    # ========== VALUE FORMATTING ==========
-    fmt_header("VALUE FORMATTING", console=console)
-    emit(f"  Change: {fmt_change('OldValue', 'NewValue')}", console=console)
-    emit(f"  Field: {fmt_field('nameID', 1)}", console=console)
-    emit(f"  Count: {fmt_count(42)}", console=console)
-    emit(f"  Value (plain): {fmt_value('RegularValue')}", console=console)
-    emit(f"  Value (before): {fmt_value('BeforeValue', 'before')}", console=console)
-    emit(f"  Value (after): {fmt_value('AfterValue', 'after')}", console=console)
-    emit(
-        f"  Value (unchanged): {fmt_value('UnchangedValue', 'unchanged')}",
-        console=console,
-    )
-    emit("", console=console)
-
-    # ========== FILE & PATH FORMATTING ==========
-    fmt_header("FILE & PATH FORMATTING", console=console)
-    emit(
-        f"  Filename only: {fmt_file('/long/path/to/MyFont-Bold.otf', filename_only=True)}",
-        console=console,
-    )
-    emit(
-        f"  Full path with filename: {fmt_file('/long/path/to/MyFont-Bold.otf', filename_only=False)}",
-        console=console,
-    )
-    emit("", console=console)
-
-    # ========== TEXT STYLING ==========
-    fmt_header("TEXT STYLING", console=console)
-    emit("  Smart underline (skips descenders):", console=console)
-    emit(f"    {fmt_smart_underline('Typography is groovy')}", console=console)
-    emit("", console=console)
-
-    # ========== STRUCTURED OUTPUT ==========
-    if RICH_AVAILABLE:
-        fmt_header("STRUCTURED OUTPUT", console=console)
-        print_panel(
-            "This is a boxed message panel.\nUseful for important notices, warnings, or summaries.\nSupports multi-line content with Rich markup.",
-            title="📋 Notice",
-            border_style="dodger_blue1",
-            console=console,
-        )
-        emit("", console=console)
-
-        table = create_table(title="Font Name Records", row_styles=["", "dim"])
-        if table:
-            table.add_column("nameID", style="cyan", justify="right")
-            table.add_column("Description", style="lighttext")
-            table.add_column("Value", style="green")
-            table.add_row("1", "Font Family", "Kalliope")
-            table.add_row("2", "Font Subfamily", "Bold")
-            table.add_row("3", "Unique ID", "2.000;CSTM;Kalliope-Bold")
-            table.add_row("4", "Full Font Name", "Kalliope Bold")
-            table.add_row("6", "PostScript Name", "Kalliope-Bold")
-            console.print(table)
-        emit("", console=console)
-
-    # ========== NAMERECORD FORMATTERS ==========
-    fmt_header("NAMERECORD FORMATTERS", console=console)
-    emit(
-        StatusIndicator("updated")
-        .add_field("nameID", 1)
-        .add_file("font.otf", filename_only=False)
-        .add_values(old_value="OldName", new_value="NewName")
-        .build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("created")
-        .add_field("nameID", 2)
-        .add_file("font.otf", filename_only=False)
-        .add_values(value="CreatedName")
-        .build(),
-        console=console,
-    )
-
-    # Legacy formatter equivalents using StatusIndicator:
-    emit(
-        StatusIndicator("parsing")
-        .add_file("/path/to/font.otf", filename_only=False)
-        .build(),
-        console=console,
-    )
-    emit(StatusIndicator("info").add_message("CurrentValue").build(), console=console)
-    emit(
-        StatusIndicator("unchanged")
-        .add_field("nameID", 1)
-        .add_file("font.otf")
-        .build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("updated").add_field("nameID", 1).add_file("font.otf").build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("created").add_field("nameID", 1).add_file("font.otf").build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("updated")
-        .add_values(old_value="OldValue", new_value="NewValue")
-        .build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("created").add_values(value="NewValue").build(), console=console
-    )
-    emit(
-        StatusIndicator("deleted").add_field("nameID", 1).add_file("font.otf").build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("saved")
-        .add_file("/path/to/font.otf", filename_only=False, style="reverse")
-        .build(),
-        console=console,
-    )
-    emit(
-        StatusIndicator("info").add_message("achVendID: UKWN").build(), console=console
-    )
-    emit(
-        StatusIndicator("updated")
-        .add_message("achVendID")
-        .add_values(old_value="UKWN", new_value="CSTM")
-        .build(),
-        console=console,
-    )
-    emit("", console=console)
-
-    # ========== STATUS INDICATOR SHOWCASE ==========
-    fmt_header("STATUS INDICATOR CLASS", console=console)
-    emit("  New unified approach for all status messages:", console=console)
-    emit("", console=console)
-
-    # Basic examples
-    emit("  Basic usage:", console=console)
-    emit(
-        f"    {StatusIndicator('updated').add_file('font.otf').build()}",
-        console=console,
-    )
-    emit(
-        f"    {StatusIndicator('error').add_file('font.otf').with_explanation('permission denied').build()}",
-        console=console,
-    )
-    emit(
-        f"    {StatusIndicator('success').add_file('font.otf').build()}",
-        console=console,
-    )
-    emit("", console=console)
-
-    # NameID examples
-    emit("  NameID operations:", console=console)
-    emit(
-        f"    {StatusIndicator('updated').add_field('nameID', 1).add_file('font.otf').add_values('OldName', 'NewName').build()}",
-        console=console,
-    )
-    emit(
-        f"    {StatusIndicator('created').add_field('nameID', 2).add_file('font.otf').add_values(value='NewName').build()}",
-        console=console,
-    )
-    emit(
-        f"    {StatusIndicator('unchanged').add_field('nameID', 3).add_file('font.otf').add_values(value='CurrentName').build()}",
-        console=console,
-    )
-    emit("", console=console)
-
-    # Style override examples
-    emit("  Style overrides:", console=console)
-    emit(
-        f"    {StatusIndicator('unchanged').add_field('nameID', 1, style='bold turquoise2').add_file('font.otf').add_values(value='CurrentValue', style='bold').build()}",
-        console=console,
-    )
-    emit(
-        f"    {StatusIndicator('info').add_message('Important!', style='bold hot_pink').build()}",
-        console=console,
-    )
-    emit(
-        f"    {StatusIndicator('warning').add_file('font.otf').with_explanation('Missing records', style='dim').add_item('nameID 1 not found', style='bold red').build()}",
-        console=console,
-    )
-    emit("", console=console)
-
-    # All status types
-    emit("  All 15 status types:", console=console)
-    for status in [
-        "updated",
-        "created",
-        "unchanged",
-        "deleted",
-        "parsing",
-        "saved",
-        "success",
-        "info",
-        "warning",
-        "error",
-        "skipped",
-        "duplicate",
-        "cache",
-        "discovered",
-        "mapping",
-    ]:
-        emit(
-            f"    {StatusIndicator(status).add_file('font.otf').build()}",
-            console=console,
-        )
-    emit("", console=console)
-
-    # ========== HIGH-LEVEL HELPERS ==========
-    fmt_header("HIGH-LEVEL HELPERS", console=console)
-    fmt_preflight_checklist(
-        "NameID 1 Replacer",
-        [
-            fmt_operation_description("Replace", "nameID 1 (Font Family)"),
-            fmt_operation_description("Update", "family names from filename"),
-        ],
-        console=console,
-    )
-    emit("", console=console)
-
-    # ========== SUMMARY ==========
-    fmt_processing_summary(
-        dry_run=False,
-        updated=35,
-        unchanged=3,
-        errors=2,
-        console=console,
-        additional_info=["Demo completed successfully"],
-    )
-
-
-if __name__ == "__main__":
-    _run_demo()

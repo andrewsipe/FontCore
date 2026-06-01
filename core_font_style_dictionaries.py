@@ -206,6 +206,27 @@ SLOPE_BASES = {"Italic", "Oblique", "Slanted", "Inclined"}
 
 MODIFIERS = {"Semi", "Demi", "Extra", "Ultra", "Super"}
 
+# Terms that suggest elidable=True when used as a weight name (STAT AxisValue names)
+ELIDABLE_WEIGHT_NAMES: frozenset[str] = frozenset(
+    {
+        "Regular",
+        "Normal",
+        "Roman",
+        "Plain",
+        "Standard",
+        "Book",
+        "Text",
+    }
+)
+
+# Terms that suggest elidable=True when used as a width name
+ELIDABLE_WIDTH_NAMES: frozenset[str] = frozenset(
+    {
+        "Normal",
+        "Regular",
+    }
+)
+
 
 # ================================================================================================
 # 4. HYPHEN PLACEMENT RULES (~30 entries)
