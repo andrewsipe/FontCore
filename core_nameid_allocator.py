@@ -6,12 +6,13 @@ NameID audit and allocation for variable-font STAT/fvar table editing.
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
 from fontTools.ttLib import TTFont
 
 from FontCore.core_logging_config import get_logger
+from FontCore.core_name_policies import sanitize_postscript, strip_variable_tokens
 from FontCore.core_ot_label_scanner import OTLabelRecord
 
 logger = get_logger(__name__)
@@ -50,8 +51,11 @@ class NameIDPlan:
     protected: Dict[int, str]
     axis_value_ids: Dict[Tuple[str, float], int]
     instance_ids: Dict[str, int]
-    free_start: int
-    free_end: int
+    instance_postscript_names: Dict[str, str] = field(default_factory=dict)
+    instance_postscript_ids: Dict[str, int] = field(default_factory=dict)
+    family_ps_prefix: str = ""
+    free_start: int = 256
+    free_end: int = 255
 
 
 def audit_nameids(font: TTFont, ot_labels: List[OTLabelRecord]) -> Dict[int, str]:
@@ -104,6 +108,51 @@ def audit_nameids(font: TTFont, ot_labels: List[OTLabelRecord]) -> Dict[int, str
     return used
 
 
+def derive_family_ps_prefix(font: TTFont) -> str:
+    """
+    Prefix for fvar instance PostScript names (e.g. OnsiteVF from nameID 25).
+
+    Prefers ID 25, then strips Variable tokens from ID 6, then typographic family.
+    """
+    n25 = font["name"].getDebugName(25)
+    if n25 and n25.strip():
+        return sanitize_postscript(n25.strip())
+
+    n6 = font["name"].getDebugName(6)
+    if n6 and n6.strip():
+        base = strip_variable_tokens(n6) or n6
+        for token in ("Variable", "VF"):
+            if base.endswith(token):
+                base = base[: -len(token)].rstrip("-_")
+            if base.endswith(f"-{token}"):
+                base = base[: -(len(token) + 1)].rstrip("-_")
+        if base:
+            return sanitize_postscript(base)
+
+    for nid in (16, 1):
+        raw = font["name"].getDebugName(nid)
+        if raw and raw.strip():
+            base = strip_variable_tokens(raw) or raw
+            compact = sanitize_postscript(base)
+            if compact:
+                return compact
+
+    return "Font"
+
+
+def compose_postscript_instance_name(family_prefix: str, subfamily_name: str) -> str:
+    """
+    Build PostScript name for one fvar instance.
+
+    Matches common VF patterns: FamilyPrefix-CondensedBold (no spaces in style).
+    """
+    prefix = sanitize_postscript(family_prefix.strip()) or "Font"
+    style = sanitize_postscript(subfamily_name.strip())
+    if not style or style.lower() == "regular":
+        return f"{prefix}-Regular"
+    return f"{prefix}-{style}"
+
+
 def compose_instance_name(
     axis_values: tuple,
     elided_fallback_name: str = "Regular",
@@ -139,6 +188,8 @@ def build_allocation_plan(
     ot_labels: List[OTLabelRecord],
     axis_defs: List[AxisDef],
     elided_fallback_name: str = "Regular",
+    *,
+    allocate_postscript_names: bool = True,
 ) -> NameIDPlan:
     """Produce nameID allocation plan without modifying the font."""
     used = audit_nameids(font, ot_labels)
@@ -156,11 +207,26 @@ def build_allocation_plan(
                 axis_value_ids[key] = cursor
                 cursor += 1
 
+    family_prefix = derive_family_ps_prefix(font) if allocate_postscript_names else ""
     instance_ids: Dict[str, int] = {}
+    instance_postscript_names: Dict[str, str] = {}
+    instance_postscript_ids: Dict[str, int] = {}
+    ps_string_to_id: Dict[str, int] = {}
+
     for composed_name in enumerate_instance_names(axis_defs, elided_fallback_name):
         if composed_name not in instance_ids:
             instance_ids[composed_name] = cursor
             cursor += 1
+
+        if not allocate_postscript_names:
+            continue
+
+        ps_name = compose_postscript_instance_name(family_prefix, composed_name)
+        instance_postscript_names[composed_name] = ps_name
+        if ps_name not in ps_string_to_id:
+            ps_string_to_id[ps_name] = cursor
+            cursor += 1
+        instance_postscript_ids[composed_name] = ps_string_to_id[ps_name]
 
     if cursor <= free_start:
         free_end = free_start - 1
@@ -171,6 +237,9 @@ def build_allocation_plan(
         protected=protected,
         axis_value_ids=axis_value_ids,
         instance_ids=instance_ids,
+        instance_postscript_names=instance_postscript_names,
+        instance_postscript_ids=instance_postscript_ids,
+        family_ps_prefix=family_prefix,
         free_start=free_start,
         free_end=free_end,
     )
@@ -184,6 +253,9 @@ def check_for_collisions(plan: NameIDPlan, font: TTFont) -> List[str]:
         **{nid: name for name, nid in plan.instance_ids.items()},
         **{nid: f"{tag}={val}" for (tag, val), nid in plan.axis_value_ids.items()},
     }
+    for composed, nid in plan.instance_postscript_ids.items():
+        ps = plan.instance_postscript_names.get(composed, "")
+        all_planned[nid] = f"PS:{ps}"
     for nid, description in all_planned.items():
         if nid in plan.protected:
             collisions.append(
@@ -201,5 +273,7 @@ __all__ = [
     "build_allocation_plan",
     "check_for_collisions",
     "compose_instance_name",
+    "compose_postscript_instance_name",
+    "derive_family_ps_prefix",
     "enumerate_instance_names",
 ]

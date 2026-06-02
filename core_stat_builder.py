@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import itertools
 from io import StringIO
-from typing import List
+from typing import List, Set
 
 from fontTools.ttLib import TTFont
 from fontTools.ttLib.tables._f_v_a_r import NamedInstance
@@ -22,18 +22,80 @@ STAT_VERSION_12 = 0x00010002
 ELIDABLE_FLAG = 0x0002
 
 
+def build_protected_name_ids(font: TTFont, ot_label_ids: Set[int]) -> Set[int]:
+    """NameIDs that must survive wipe (OT labels, fvar/STAT axis names)."""
+    protected = set(ot_label_ids)
+    if "fvar" in font:
+        for axis in font["fvar"].axes:
+            if axis.axisNameID >= 256:
+                protected.add(axis.axisNameID)
+    if "STAT" in font:
+        stat = font["STAT"].table
+        design = getattr(stat, "DesignAxisRecord", None)
+        if design and design.Axis:
+            for axis in design.Axis:
+                if axis.AxisNameID >= 256:
+                    protected.add(axis.AxisNameID)
+    return protected
+
+
+def count_existing_stat_axis_values(font: TTFont) -> int:
+    if "STAT" not in font:
+        return 0
+    stat = font["STAT"].table
+    array = getattr(stat, "AxisValueArray", None)
+    if not array or not array.AxisValue:
+        return 0
+    return len(array.AxisValue)
+
+
+def _wipe_existing_table_data(font: TTFont, protected_ids: Set[int]) -> None:
+    """Clear fvar instances, STAT axis values, and non-protected name IDs ≥ 256."""
+    if "fvar" in font:
+        font["fvar"].instances = []
+
+    if "STAT" in font:
+        stat = font["STAT"].table
+        avarray = AxisValueArray()
+        avarray.AxisValue = []
+        stat.AxisValueArray = avarray
+
+    name_table = font["name"]
+    name_table.names = [
+        rec
+        for rec in name_table.names
+        if rec.nameID < 256 or rec.nameID in protected_ids
+    ]
+
+
 def apply_table_edits(
     font: TTFont,
     axis_defs: List[AxisDef],
     plan: NameIDPlan,
     elided_fallback_name: str = "Regular",
     fix_fvar_default: bool = True,
+    protected_ids: Set[int] | None = None,
+    confirm_wipe: bool = False,
+    ot_label_count: int = 0,
 ) -> None:
     """
     Write all changes to the font in memory. Does not save.
 
-    Order: name records → fvar defaults → fvar instances → STAT.
+    Order: optional wipe confirmation → wipe → name records → fvar defaults
+    → fvar instances → STAT. DesignAxisRecord is preserved (not wiped).
     """
+    if protected_ids is None:
+        protected_ids = set()
+
+    if confirm_wipe:
+        confirm_wipe_and_rebuild(
+            font,
+            protected_ids,
+            ot_label_count=ot_label_count,
+        )
+
+    _wipe_existing_table_data(font, protected_ids)
+
     _write_name_records(font, axis_defs, plan)
     if fix_fvar_default:
         _fix_fvar_defaults(font, axis_defs)
@@ -81,6 +143,11 @@ def _write_name_records(font: TTFont, axis_defs: List[AxisDef], plan: NameIDPlan
 
     for composed_name, nid in plan.instance_ids.items():
         name_table.setName(composed_name, nid, 3, 1, 0x0409)
+
+    for composed_name, ps_nid in plan.instance_postscript_ids.items():
+        ps_name = plan.instance_postscript_names.get(composed_name)
+        if ps_name:
+            name_table.setName(ps_name, ps_nid, 3, 1, 0x0409)
 
 
 def _fix_fvar_defaults(font: TTFont, axis_defs: List[AxisDef]) -> None:
@@ -130,7 +197,8 @@ def _write_fvar_instances(
         inst = NamedInstance()
         inst.coordinates = coords
         inst.subfamilyNameID = plan.instance_ids[composed]
-        inst.postscriptNameID = 0xFFFF
+        ps_nid = plan.instance_postscript_ids.get(composed)
+        inst.postscriptNameID = ps_nid if ps_nid is not None else 0xFFFF
         fvar.instances.append(inst)
 
 
@@ -234,8 +302,57 @@ def default_fix_summary(
     return lines
 
 
+def confirm_wipe_and_rebuild(
+    font: TTFont,
+    protected_ids: Set[int],
+    *,
+    ot_label_count: int = 0,
+) -> None:
+    """
+    Show wipe summary and require confirmation. Raises SystemExit(0) on decline.
+    Console I/O lives in the table editor; this performs counts only when cs unavailable.
+    """
+    from FontCore import core_console_styles as cs
+
+    fvar_count = len(font["fvar"].instances) if "fvar" in font else 0
+    stat_count = count_existing_stat_axis_values(font)
+    name_high = sum(1 for rec in font["name"].names if rec.nameID >= 256)
+
+    cs.emit("")
+    _emit = cs.emit
+    if getattr(cs, "RICH_AVAILABLE", False):
+        from rich.panel import Panel
+        from rich.markup import escape
+
+        body = (
+            "This will replace:\n"
+            f"  • fvar instances     (currently: {fvar_count})\n"
+            f"  • STAT axis values   (currently: {stat_count})\n"
+            f"  • name records ≥ 256 (currently: {name_high}, "
+            f"protected: {ot_label_count})\n\n"
+            "Protected OT label nameIDs will not be touched.\n"
+            "STAT DesignAxisRecord is preserved (axis tags / ordering).\n"
+            "This operation cannot be undone on the open file."
+        )
+        cs.get_console().print(
+            Panel(escape(body), title="WIPE AND REBUILD", border_style="yellow")
+        )
+    else:
+        _emit("WIPE AND REBUILD")
+        _emit(f"  fvar instances to replace: {fvar_count}")
+        _emit(f"  STAT axis values to replace: {stat_count}")
+        _emit(f"  name IDs ≥ 256: {name_high} (protected OT labels: {ot_label_count})")
+        _emit("  DesignAxisRecord is preserved.")
+
+    if not cs.prompt_confirm("Continue with wipe and rebuild?", default=False):
+        raise SystemExit(0)
+
+
 __all__ = [
     "apply_table_edits",
+    "build_protected_name_ids",
+    "confirm_wipe_and_rebuild",
+    "count_existing_stat_axis_values",
     "generate_ttx_additions",
     "count_instances",
     "default_fix_summary",
