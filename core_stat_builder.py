@@ -135,6 +135,10 @@ def generate_ttx_additions(
 
 def _write_name_records(font: TTFont, axis_defs: List[AxisDef], plan: NameIDPlan) -> None:
     name_table = font["name"]
+
+    for tag, nid in plan.axis_name_ids.items():
+        name_table.setName(plan.axis_names.get(tag, tag), nid, 3, 1, 0x0409)
+
     for axis_def in axis_defs:
         for av_def in axis_def.values:
             key = (axis_def.tag, av_def.value)
@@ -148,6 +152,12 @@ def _write_name_records(font: TTFont, axis_defs: List[AxisDef], plan: NameIDPlan
         ps_name = plan.instance_postscript_names.get(composed_name)
         if ps_name:
             name_table.setName(ps_name, ps_nid, 3, 1, 0x0409)
+
+    # Dedicated elided-fallback string (when not already an instance name)
+    if plan.elided_fallback_id and plan.elided_fallback_name not in plan.instance_ids:
+        name_table.setName(
+            plan.elided_fallback_name, plan.elided_fallback_id, 3, 1, 0x0409
+        )
 
 
 def _fix_fvar_defaults(font: TTFont, axis_defs: List[AxisDef]) -> None:
@@ -215,6 +225,14 @@ def _write_stat(
     if stat_table.Version < STAT_VERSION_12:
         stat_table.Version = STAT_VERSION_12
 
+    # Repoint DesignAxisRecord axis names to the freshly allocated 256+ IDs
+    design = getattr(stat_table, "DesignAxisRecord", None)
+    if design and design.Axis:
+        for ax in design.Axis:
+            new_nid = plan.axis_name_ids.get(ax.AxisTag)
+            if new_nid is not None:
+                ax.AxisNameID = new_nid
+
     axis_values: List[AxisValue] = []
 
     for axis_def in axis_defs:
@@ -253,9 +271,10 @@ def _write_stat(
     avarray.AxisValue = axis_values
     stat_table.AxisValueArray = avarray
 
-    efb_nid = plan.instance_ids.get(elided_fallback_name)
-    if efb_nid is None:
-        efb_nid = 2
+    # Always a freshly allocated 256+ ID (never reuse ID 2)
+    efb_nid = plan.elided_fallback_id or plan.instance_ids.get(elided_fallback_name)
+    if not efb_nid:
+        raise ValueError("No elided fallback nameID allocated in plan")
     stat_table.ElidedFallbackNameID = efb_nid
 
 

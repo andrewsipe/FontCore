@@ -51,9 +51,13 @@ class NameIDPlan:
     protected: Dict[int, str]
     axis_value_ids: Dict[Tuple[str, float], int]
     instance_ids: Dict[str, int]
+    axis_name_ids: Dict[str, int] = field(default_factory=dict)
+    axis_names: Dict[str, str] = field(default_factory=dict)
     instance_postscript_names: Dict[str, str] = field(default_factory=dict)
     instance_postscript_ids: Dict[str, int] = field(default_factory=dict)
     family_ps_prefix: str = ""
+    elided_fallback_name: str = "Regular"
+    elided_fallback_id: int = 0
     free_start: int = 256
     free_end: int = 255
 
@@ -196,10 +200,19 @@ def build_allocation_plan(
     protected = dict(used)
 
     free_start = (max(protected.keys()) + 1) if protected else 256
-
-    axis_value_ids: Dict[Tuple[str, float], int] = {}
     cursor = free_start
 
+    # 1. Axis display names (reallocated fresh at 256+, decoupled from 2/6/17)
+    axis_name_ids: Dict[str, int] = {}
+    axis_names: Dict[str, str] = {}
+    for axis_def in axis_defs:
+        if axis_def.tag not in axis_name_ids:
+            axis_name_ids[axis_def.tag] = cursor
+            axis_names[axis_def.tag] = axis_def.display_name or axis_def.tag
+            cursor += 1
+
+    # 2. STAT axis value names
+    axis_value_ids: Dict[Tuple[str, float], int] = {}
     for axis_def in axis_defs:
         for av_def in axis_def.values:
             key = (axis_def.tag, av_def.value)
@@ -228,6 +241,14 @@ def build_allocation_plan(
             cursor += 1
         instance_postscript_ids[composed_name] = ps_string_to_id[ps_name]
 
+    # Elided fallback name: reuse the all-elided instance ID when present,
+    # otherwise allocate a dedicated 256+ ID. Never falls back to ID 2.
+    if elided_fallback_name in instance_ids:
+        elided_fallback_id = instance_ids[elided_fallback_name]
+    else:
+        elided_fallback_id = cursor
+        cursor += 1
+
     if cursor <= free_start:
         free_end = free_start - 1
     else:
@@ -237,9 +258,13 @@ def build_allocation_plan(
         protected=protected,
         axis_value_ids=axis_value_ids,
         instance_ids=instance_ids,
+        axis_name_ids=axis_name_ids,
+        axis_names=axis_names,
         instance_postscript_names=instance_postscript_names,
         instance_postscript_ids=instance_postscript_ids,
         family_ps_prefix=family_prefix,
+        elided_fallback_name=elided_fallback_name,
+        elided_fallback_id=elided_fallback_id,
         free_start=free_start,
         free_end=free_end,
     )
@@ -252,10 +277,17 @@ def check_for_collisions(plan: NameIDPlan, font: TTFont) -> List[str]:
     all_planned: Dict[int, str] = {
         **{nid: name for name, nid in plan.instance_ids.items()},
         **{nid: f"{tag}={val}" for (tag, val), nid in plan.axis_value_ids.items()},
+        **{nid: f"axis name [{tag}]" for tag, nid in plan.axis_name_ids.items()},
     }
     for composed, nid in plan.instance_postscript_ids.items():
         ps = plan.instance_postscript_names.get(composed, "")
         all_planned[nid] = f"PS:{ps}"
+    for nid, description in all_planned.items():
+        if nid < 256:
+            collisions.append(
+                f"nameID {nid} planned for '{description}' is below 256 "
+                "(variable naming must live at 256+)"
+            )
     for nid, description in all_planned.items():
         if nid in plan.protected:
             collisions.append(
