@@ -33,6 +33,7 @@ except Exception:  # pragma: no cover
 from xml.etree import ElementTree as ET_fallback
 
 from FontCore.core_name_policies import (
+    normalize_nfc,
     sanitize_cff_name_string,
     sanitize_postscript,
 )
@@ -359,6 +360,7 @@ __all__ = [
     "is_italic_ttx",
     "is_italic_binary",
     "find_name_string_ttx",
+    "find_existing_private_name_id_ttx",
     "allocate_private_name_id_ttx",
     "create_private_namerecord_ttx",
     "remap_fvar_stat_nameids_ttx",
@@ -369,6 +371,7 @@ __all__ = [
     "sync_cff_names_ttx",
     "set_cff_fontname_ttx",
     "allocate_private_name_id_binary",
+    "find_existing_private_name_id_binary",
     "create_private_namerecord_binary",
     "remap_fvar_stat_nameids_binary",
     "preserve_low_nameids_in_fvar_stat_binary",
@@ -615,6 +618,40 @@ def allocate_private_name_id_ttx(name_table, start: int = 256) -> int:
     return nid
 
 
+def find_existing_private_name_id_ttx(
+    name_table,
+    string: str,
+    start: int = 256,
+    pid: int = PID_WIN,
+    eid: int = EID_UNICODE_BMP,
+    lang: str = LANG_EN_US_HEX,
+) -> int | None:
+    """Return an existing private nameID (>= start) with matching Windows-English string."""
+    target = normalize_nfc(string)
+    if not target:
+        return None
+    for nr in name_table.findall("namerecord"):
+        try:
+            nid = int(nr.get("nameID", ""))
+        except Exception:
+            continue
+        if nid < start:
+            continue
+        try:
+            if int(nr.get("platformID", "")) != pid:
+                continue
+            if int(nr.get("platEncID", "")) != eid:
+                continue
+            if str(nr.get("langID", "")).lower() != str(lang).lower():
+                continue
+        except Exception:
+            continue
+        _p, core, _s = _extract_wrapped_text(nr.text)
+        if normalize_nfc(core) == target:
+            return nid
+    return None
+
+
 def _fix_namerecord_tails(name_table, new_record, siblings_before: list) -> None:
     """Fix tail formatting for inserted namerecord."""
     indent_non_last = "\n    "
@@ -823,7 +860,9 @@ def preserve_low_nameids_in_fvar_stat_ttx(root, name_table, threshold: int = 17)
             old_str = find_name_string_any_platform_ttx(name_table, old_id)
         if not old_str:
             continue
-        new_id = create_private_namerecord_ttx(name_table, old_str)
+        new_id = find_existing_private_name_id_ttx(name_table, old_str)
+        if new_id is None:
+            new_id = create_private_namerecord_ttx(name_table, old_str)
         total_changes += remap_fvar_stat_nameids_ttx(root, old_id, new_id)
     return total_changes
 
@@ -892,6 +931,43 @@ def allocate_private_name_id_binary(font: TTFont, start: int = 256) -> int:
     while nid in used:
         nid += 1
     return nid
+
+
+def find_existing_private_name_id_binary(
+    font: TTFont,
+    string: str,
+    start: int = 256,
+    pid: int = PID_WIN,
+    eid: int = EID_UNICODE_BMP,
+    lang: int = LANG_EN_US_INT,
+) -> int | None:
+    """Return an existing private nameID (>= start) with matching Windows-English string."""
+    target = normalize_nfc(string)
+    if not target or "name" not in font:
+        return None
+    try:
+        for rec in font["name"].names:
+            try:
+                nid = int(getattr(rec, "nameID", -1))
+            except Exception:
+                continue
+            if nid < start:
+                continue
+            if (
+                int(getattr(rec, "platformID", -1)) != pid
+                or int(getattr(rec, "platEncID", -1)) != eid
+                or int(getattr(rec, "langID", -1)) != lang
+            ):
+                continue
+            try:
+                value = rec.toUnicode()
+            except Exception:
+                value = str(getattr(rec, "string", ""))
+            if normalize_nfc(value) == target:
+                return nid
+    except Exception:
+        return None
+    return None
 
 
 def create_private_namerecord_binary(
@@ -1062,7 +1138,9 @@ def preserve_low_nameids_in_fvar_stat_binary(font: TTFont, threshold: int = 17) 
                     old_str = str(rec)
             if not old_str:
                 continue
-            new_id = create_private_namerecord_binary(font, old_str)
+            new_id = find_existing_private_name_id_binary(font, old_str)
+            if new_id is None:
+                new_id = create_private_namerecord_binary(font, old_str)
             total_changes += remap_fvar_stat_nameids_binary(font, old_id, new_id)
         except Exception:
             continue

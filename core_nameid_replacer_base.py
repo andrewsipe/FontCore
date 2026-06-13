@@ -22,6 +22,11 @@ from FontCore.core_error_handling import (
     ErrorContext,
     ErrorInfo,
 )
+from FontCore.core_variable_filename_parser import (
+    filename_has_variable_marker,
+    format_variable_filename,
+    variable_slots_from_path,
+)
 
 logger = get_logger(__name__)
 
@@ -432,6 +437,17 @@ def clean_variable_family_name(family: str) -> str:
     from FontCore.core_name_policies import strip_variable_tokens
 
     return strip_variable_tokens(family) or family
+
+
+def resolve_variable_slots_for_replacer(filepath: str):
+    """Parse variable-font filename slots when safe for NameID policy builders."""
+    from FontCore.core_variable_filename_parser import (
+        slots_usable_for_policy,
+        variable_slots_from_path,
+    )
+
+    slots = variable_slots_from_path(filepath)
+    return slots if slots_usable_for_policy(slots) else None
 
 
 def run_workflow(

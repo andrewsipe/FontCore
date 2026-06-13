@@ -35,9 +35,14 @@ from FontCore.core_file_collector import collect_font_files, SUPPORTED_EXTENSION
 from FontCore.core_name_policies import (
     build_id1,
     build_id4,
+    build_id1_from_variable_slots,
+    build_id4_from_variable_slots,
+    build_id16_from_variable_slots,
+    build_id17_from_variable_slots,
     sanitize_postscript,
     strip_variable_tokens,
 )
+from FontCore.core_variable_filename_parser import parse_variable_filename
 
 console = cs.get_console()
 
@@ -676,6 +681,43 @@ def demo_name_policies(files: List[str], args: argparse.Namespace):
     for example in var_examples:
         stripped = strip_variable_tokens(example)
         cs.emit(f"  {cs.fmt_value(example)} → {cs.fmt_change(example, stripped)}")
+
+    # Demo variable filename slot pipeline
+    cs.emit(
+        f"\n{cs.INFO_LABEL} {cs.fmt_smart_underline('Variable Filename Slots → NameIDs')}"
+    )
+
+    vf_examples = [
+        "Roslindale-Variable.ttf",
+        "RoslindaleText-Variable.ttf",
+        "ReaderProCondensed-Variable.ttf",
+        "ReaderPro-CondensedVariable.ttf",
+        "FL_RareText-VariableUpright.ttf",
+        "FL_Rare-VariableCursive.ttf",
+    ]
+
+    for example in vf_examples:
+        slots = parse_variable_filename(example)
+        if slots is None:
+            cs.emit(f"  {cs.fmt_value(example)} → (not a variable filename)")
+            continue
+        cs.emit(f"  {cs.fmt_value(example)}")
+        cs.emit(
+            f"    dialect: {slots.dialect.value}, "
+            f"root={slots.root_family!r}, optical={slots.optical!r}, "
+            f"width={slots.width!r}, slope={slots.slope!r}, bespoke={slots.bespoke!r}"
+        )
+        cs.emit(f"    ID1:  {cs.fmt_field('id1', build_id1_from_variable_slots(slots))}")
+        cs.emit(f"    ID4:  {cs.fmt_field('id4', build_id4_from_variable_slots(slots))}")
+        cs.emit(
+            f"    ID16: {cs.fmt_field('id16', build_id16_from_variable_slots(slots))}"
+        )
+        cs.emit(
+            f"    ID17: {cs.fmt_field('id17', build_id17_from_variable_slots(slots))}"
+        )
+        if slots.warnings:
+            cs.emit(f"    warnings: {', '.join(slots.warnings)}")
+        cs.emit("")
 
 
 def demo_ttx_operations(files: List[str], args: argparse.Namespace):

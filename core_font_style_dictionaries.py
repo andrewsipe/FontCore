@@ -35,10 +35,16 @@ COMPOUND_NORMALIZATIONS = {
     "VariableRegular-Variable": "Variable",
     "VariableItalic-Variable": "VariableItalic",
     "VariableOblique-Variable": "VariableOblique",
+    "VariableSlanted-Variable": "VariableSlanted",
+    "VariableUpright-Variable": "VariableUpright",
     "Variable-Variable": "Variable",
     "Variable-Italic": "VariableItalic",
     "Variable-Oblique": "VariableOblique",
+    "Variable-Slanted": "VariableSlanted",
+    "Variable-Upright": "VariableUpright",
     "VariableVariable": "Variable",
+    "VariableSlanted": "Variable Slanted",
+    "VariableUpright": "Variable Upright",
     # Common substitutions
     # "Roman": "Regular",  # REMOVED - Roman is a valid regular-equivalent
     "Round-ed": "Rounded",
@@ -204,6 +210,14 @@ OPTICAL_BASES = {
 
 SLOPE_BASES = {"Italic", "Oblique", "Slanted", "Inclined"}
 
+# Slopes retained in display names (ID4) and ID17 when present in filename
+KNOWN_VF_SLOPES: frozenset[str] = frozenset(
+    {"Italic", "Oblique", "Slanted", "Inclined", "Slant"}
+)
+
+# Filename pairing marker: elide from ID1/ID4/ID17 (like Regular)
+ELIDABLE_VF_FILENAME_SLOPES: frozenset[str] = frozenset({"Upright"})
+
 MODIFIERS = {"Semi", "Demi", "Extra", "Ultra", "Super"}
 
 # Terms that suggest elidable=True when used as a weight name (STAT AxisValue names)
@@ -263,7 +277,6 @@ HYPHEN_LEFT_TERMS = {
     "SemiWide",
     "ExtraWide",
     "UltraWide",
-    "Variable",
 }
 
 # Terms that prefer hyphen on the RIGHT (Display-)

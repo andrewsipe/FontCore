@@ -6,6 +6,24 @@ Scope (display-layer policy only):
 - Handles Variable naming overrides
 - Applies style/slope normalization for ID1/ID4 using NameSubfamilyPolicies
 
+Variable font naming (tier model):
+    Superfamily / optical / width / slope / bespoke product files share one typographic
+    family (ID16 = ``{root} Variable``). Filename slots come from
+    ``parse_variable_filename()`` (static-aligned and legacy width-in-family dialects).
+
+    Per-ID rules from slots:
+    - ID1: root + optical + width (no Variable, no elided slopes)
+    - ID4: ID1 + ``Variable`` + bespoke + non-elided slope
+    - ID16: ``{root} Variable`` (flat across all VF siblings)
+    - ID17: optical + width + bespoke + non-elided slope; default ``Regular``
+
+    Upright is a filename pairing marker elided from ID1/ID4/ID17 (like Regular).
+
+    ID17 + STAT contract (replacers wire this in a follow-up):
+    1. Preserve fvar/STAT strings linked at nameIDs <= 255 via
+       ``preserve_low_nameids_in_fvar_stat_*`` in core_ttx_table_io.
+    2. Set ID17 from filename slots, not ``compute_stat_default_style_name_*``.
+
 Additional shared policies consolidated:
 - ID2 subfamily mapping and RIBBI flag computation
 - ID3 composition and sanitizers (version/vendor/filename)
@@ -13,14 +31,9 @@ Additional shared policies consolidated:
 - ID6 PostScript name sanitization
 - Family-level Regular-equivalent detection for non-standard families
 
-Family-level Regular-equivalent detection:
-    When a font family doesn't use "Regular" as the base weight, this module can
-    identify which alternative term (Book, Normal, Medium, etc.) acts as the family's
-    regular weight and apply standard Regular treatment (omit from ID1/ID4).
-
 Demo and Testing:
     Run 'python CoreDemoTool.py policies --help' to see examples of NameID building,
-    PostScript sanitization, and variable token stripping.
+    PostScript sanitization, and variable slot parsing.
 
 Maintenance Note:
     When adding new policy functions to this module, update CoreDemoTool.py to showcase
@@ -31,15 +44,24 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, TYPE_CHECKING
 
 # New imports for enhanced functionality
 from FontCore.core_logging_config import get_logger
 from FontCore.core_string_utils import normalize_empty, is_empty, join_nonempty
+from FontCore.core_font_style_dictionaries import ELIDABLE_VF_FILENAME_SLOPES
+
+if TYPE_CHECKING:
+    from FontCore.core_variable_filename_parser import VariableFilenameSlots
 
 logger = get_logger(__name__)
 
 DEFAULT_REGULAR_SYNONYMS_MODE = "regular_only"
+
+# Slopes elided from variable-font display names (ID4) and ID17
+ELIDABLE_VF_DISPLAY_SLOPES: frozenset[str] = frozenset(
+    {"Regular", "Roman", "Normal", "Plain", "Standard", "Upright"}
+) | ELIDABLE_VF_FILENAME_SLOPES
 
 # Canonical list of valid regular-equivalent terms
 VALID_REGULAR_EQUIVALENTS = frozenset(
@@ -426,6 +448,41 @@ def _sanitize_asterisk_for_id1_id4(text: str | None) -> str | None:
     return text
 
 
+def is_elidable_vf_slope(slope: str | None) -> bool:
+    """True when a variable-font slope token should be omitted from ID4/ID17."""
+    if not slope or not str(slope).strip():
+        return True
+    return slope.strip().lower() in {s.lower() for s in ELIDABLE_VF_DISPLAY_SLOPES}
+
+
+def build_id1_from_variable_slots(slots: "VariableFilenameSlots") -> str:
+    """Construct ID1 from parsed variable-font filename slots."""
+    return (
+        join_nonempty(slots.root_family, slots.optical, slots.width) or slots.root_family
+    )
+
+
+def build_id4_from_variable_slots(slots: "VariableFilenameSlots") -> str:
+    """Construct ID4 from parsed variable-font filename slots."""
+    base = build_id1_from_variable_slots(slots)
+    parts: list[str | None] = [base, "Variable", slots.bespoke]
+    if slots.slope and not is_elidable_vf_slope(slots.slope):
+        parts.append(slots.slope)
+    return join_nonempty(*parts)
+
+
+def build_id16_from_variable_slots(slots: "VariableFilenameSlots") -> str:
+    """Construct ID16 typographic family: flat ``{root} Variable`` umbrella."""
+    return join_nonempty(slots.root_family, "Variable")
+
+
+def build_id17_from_variable_slots(slots: "VariableFilenameSlots") -> str:
+    """Construct ID17 typographic subfamily from variable-font filename slots."""
+    slope = slots.slope if not is_elidable_vf_slope(slots.slope) else None
+    out = join_nonempty(slots.optical, slots.width, slots.bespoke, slope)
+    return out if out else "Regular"
+
+
 def build_id1(
     family: str,
     modifier: str | None,
@@ -434,11 +491,15 @@ def build_id1(
     *,
     is_variable: bool = False,
     variable_family_override: str | None = None,
+    variable_slots: "VariableFilenameSlots | None" = None,
     use_filename_normalization: bool = True,
     regular_synonyms_mode: str = DEFAULT_REGULAR_SYNONYMS_MODE,
     regular_equivalent: str | None = None,
 ) -> str:
     """Construct ID1 (Family) string with policy."""
+    if variable_slots is not None:
+        return build_id1_from_variable_slots(variable_slots)
+
     # Validate regular_equivalent
     regular_equivalent = validate_regular_equivalent(regular_equivalent, strict=False)
 
@@ -477,6 +538,7 @@ def build_id4(
     *,
     is_variable: bool = False,
     variable_family_override: str | None = None,
+    variable_slots: "VariableFilenameSlots | None" = None,
     is_italic_font: bool | None = None,
     slope_from_filename: str | None = None,
     prefix_from_filename: str | None = None,
@@ -486,6 +548,8 @@ def build_id4(
     regular_equivalent: str | None = None,
 ) -> str:
     """Construct ID4 (Full) string with policy."""
+    if variable_slots is not None:
+        return build_id4_from_variable_slots(variable_slots)
 
     # Variable font policy: preserve prefix/suffix order around "Variable" (prefix before, suffix after)
     if is_variable:
@@ -523,8 +587,11 @@ def build_id16(
     *,
     is_variable: bool = False,
     variable_family_override: str | None = None,
+    variable_slots: "VariableFilenameSlots | None" = None,
 ) -> str:
     """Construct ID16 (Typographic Family). Variable mode appends "Variable"."""
+    if variable_slots is not None:
+        return build_id16_from_variable_slots(variable_slots)
 
     # Variable font policy: Append "Variable" to family
     if is_variable:
@@ -576,6 +643,12 @@ __all__ = [
     "identify_family_regular_equivalent",
     "get_regular_equivalent_for_families",
     # Variable helpers
+    "is_elidable_vf_slope",
+    "build_id1_from_variable_slots",
+    "build_id4_from_variable_slots",
+    "build_id16_from_variable_slots",
+    "build_id17_from_variable_slots",
+    "ELIDABLE_VF_DISPLAY_SLOPES",
     "split_variable_subfamily",
     "strip_only_variable_token",
     "strip_variable_tokens",
@@ -1033,6 +1106,10 @@ _RE_VARIABLE_WORD = re.compile(r"\bVariable(?:Italic)?\b", re.I)
 def split_variable_subfamily(subfamily: str | None) -> tuple[str, str]:
     """Split subfamily into (prefix, suffix) around the word Variable or VariableItalic.
 
+    .. deprecated::
+        Prefer ``parse_variable_filename()`` and ``build_id*_from_variable_slots()``.
+        Kept for NameID replacers until they are migrated.
+
     Prefix is text before the token, suffix is text after. Both are normalized
     (strip, collapse spaces). Used for ID4 (prefix + suffix as third part) and
     ID17 (prefix in fallback).
@@ -1111,13 +1188,19 @@ def build_id17_variable_default(
     is_italic: bool,
     slope_from_filename: str | None = None,
     prefix_from_filename: str | None = None,
+    variable_slots: "VariableFilenameSlots | None" = None,
 ) -> str:
     """Build ID17 for variable fonts from filename-derived prefix/slope or italic detection.
+
+    When ``variable_slots`` is provided, delegates to ``build_id17_from_variable_slots``.
 
     prefix_from_filename: part before "Variable" in subfamily (e.g. Black, Bold).
     slope_from_filename: part after "Variable" or slope term (e.g. Italic).
     If the only part is a slope term (Italic/Oblique/Slanted), prefix with "Regular ".
     """
+    if variable_slots is not None:
+        return build_id17_from_variable_slots(variable_slots)
+
     slope = slope_from_filename
     if slope is None and is_italic:
         slope = "Italic"
