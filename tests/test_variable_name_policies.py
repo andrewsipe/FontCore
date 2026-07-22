@@ -6,10 +6,14 @@ import pytest
 
 from FontCore.core_name_policies import (
     build_id1_from_variable_slots,
+    build_id4,
     build_id4_from_variable_slots,
     build_id16_from_variable_slots,
     build_id17_from_variable_slots,
+    build_id17_variable_default,
     is_elidable_vf_slope,
+    split_variable_subfamily,
+    strip_variable_tokens,
 )
 from FontCore.core_variable_filename_parser import (
     VariableFilenameDialect,
@@ -58,6 +62,15 @@ from FontCore.core_variable_filename_parser import (
             "Text",
             None,
             "Upright",
+            None,
+            "static_aligned",
+        ),
+        (
+            "FL_RareText-VariableRoman.ttf",
+            "FL Rare",
+            "Text",
+            None,
+            "Roman",
             None,
             "static_aligned",
         ),
@@ -134,6 +147,13 @@ def test_parse_variable_filename_fixtures(
             "Text",
         ),
         (
+            "FL_RareText-VariableRoman.ttf",
+            "FL Rare Text",
+            "FL Rare Text Variable",
+            "FL Rare Variable",
+            "Text",
+        ),
+        (
             "FL_Rare-VariableCursive.ttf",
             "FL Rare",
             "FL Rare Variable Cursive",
@@ -175,12 +195,21 @@ def test_legacy_and_aligned_width_normalize_same_slots():
     assert build_id4_from_variable_slots(legacy) == build_id4_from_variable_slots(aligned)
 
 
-def test_upright_elided_from_id4_and_id17():
-    slots = parse_variable_filename("FL_RareText-VariableUpright.ttf")
+@pytest.mark.parametrize(
+    "filename,slope",
+    [
+        ("FL_RareText-VariableUpright.ttf", "Upright"),
+        ("FL_RareText-VariableRoman.ttf", "Roman"),
+        ("FL_RareText-Variable-Roman.ttf", "Roman"),
+    ],
+)
+def test_pairing_marker_elided_from_id4_and_id17(filename, slope):
+    slots = parse_variable_filename(filename)
     assert slots is not None
-    assert slots.slope == "Upright"
-    assert is_elidable_vf_slope("Upright")
-    assert "Upright" not in build_id4_from_variable_slots(slots)
+    assert slots.slope == slope
+    assert is_elidable_vf_slope(slope)
+    assert slope not in build_id4_from_variable_slots(slots)
+    assert build_id4_from_variable_slots(slots) == "FL Rare Text Variable"
     assert build_id17_from_variable_slots(slots) == "Text"
 
 
@@ -224,6 +253,8 @@ def test_filename_has_variable_marker(stem, expected):
         ("ReaderProCondensed-Variable.ttf", "ReaderPro-CondensedVariable"),
         ("ReaderPro-CondensedVariable.ttf", "ReaderPro-CondensedVariable"),
         ("FL_Rare-VariableItalic.ttf", "FLRare-VariableItalic"),
+        ("FL_RareText-VariableRoman.ttf", "FLRareText-VariableRoman"),
+        ("FL_RareText-VariableUpright.ttf", "FLRareText-VariableUpright"),
         ("RoslindaleText-Variable.ttf", "RoslindaleText-Variable"),
     ],
 )
@@ -246,3 +277,67 @@ def test_extractor_footgun_no_double_variable_suffix():
     if not filename_has_variable_marker(stem):
         stem = f"{stem}-Variable"
     assert stem == "QualionNeue-VariableItalic"
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Helvetica-Variable", "Helvetica"),
+        ("Helvetica-VariableItalic", "Helvetica"),
+        ("Helvetica-VariableUpright", "Helvetica"),
+        ("Helvetica-VariableRoman", "Helvetica"),
+        ("Helvetica Variable Roman", "Helvetica"),
+        ("Helvetica Variable Upright", "Helvetica"),
+        ("Muller Next Variable Roman", "Muller Next"),
+    ],
+)
+def test_strip_variable_tokens_pairing_markers(text, expected):
+    assert strip_variable_tokens(text) == expected
+
+
+@pytest.mark.parametrize(
+    "subfamily,prefix,suffix",
+    [
+        ("VariableItalic", "", ""),
+        ("VariableUpright", "", ""),
+        ("VariableRoman", "", ""),
+        ("Black Variable", "Black", ""),
+        ("Black Variable Italic", "Black", "Italic"),
+        ("Variable Roman", "", "Roman"),
+    ],
+)
+def test_split_variable_subfamily_pairing_markers(subfamily, prefix, suffix):
+    assert split_variable_subfamily(subfamily) == (prefix, suffix)
+
+
+@pytest.mark.parametrize("slope", ["Upright", "Roman"])
+def test_legacy_id4_and_id17_elide_pairing_markers(slope):
+    assert (
+        build_id4(
+            "FL Rare Text",
+            None,
+            None,
+            None,
+            is_variable=True,
+            slope_from_filename=slope,
+        )
+        == "FL Rare Text Variable"
+    )
+    assert (
+        build_id4(
+            "FL Rare Text",
+            None,
+            None,
+            None,
+            is_variable=True,
+            prefix_from_filename="",
+            suffix_from_filename=slope,
+        )
+        == "FL Rare Text Variable"
+    )
+    assert (
+        build_id17_variable_default(
+            False, slope_from_filename=slope, prefix_from_filename="Text"
+        )
+        == "Text"
+    )

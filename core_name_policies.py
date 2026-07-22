@@ -17,7 +17,8 @@ Variable font naming (tier model):
     - ID16: ``{root} Variable`` (flat across all VF siblings)
     - ID17: optical + width + bespoke + non-elided slope; default ``Regular``
 
-    Upright is a filename pairing marker elided from ID1/ID4/ID17 (like Regular).
+    Upright and Roman are filename pairing markers elided from ID1/ID4/ID17
+    (like Regular), used when a family has separate upright/roman and italic VF files.
 
     ID17 + STAT contract (replacers wire this in a follow-up):
     1. Preserve fvar/STAT strings linked at nameIDs <= 255 via
@@ -558,10 +559,15 @@ def build_id4(
 
         # Prefer explicit prefix/suffix from filename (order preserved: Family prefix Variable suffix)
         if prefix_from_filename is not None or suffix_from_filename is not None:
-            return join_nonempty(base, prefix_from_filename, "Variable", suffix_from_filename)
+            suffix = (
+                None
+                if is_elidable_vf_slope(suffix_from_filename)
+                else suffix_from_filename
+            )
+            return join_nonempty(base, prefix_from_filename, "Variable", suffix)
 
         # Legacy: single slope_from_filename (Variable then slope)
-        if slope_from_filename:
+        if slope_from_filename and not is_elidable_vf_slope(slope_from_filename):
             return join_nonempty(base, "Variable", slope_from_filename)
 
         # Fallback to italic detection
@@ -1099,12 +1105,12 @@ def get_regular_equivalent_for_families(font_paths: list[str]) -> dict[str, str 
 
 # Variable font detection functions are now imported from FontCore.core_variable_font_detection
 
-# Split subfamily on the word "Variable" or "VariableItalic" (word boundaries)
-_RE_VARIABLE_WORD = re.compile(r"\bVariable(?:Italic)?\b", re.I)
+# Split on Variable, including glued pairing/italic markers (VariableItalic, VariableUpright, VariableRoman)
+_RE_VARIABLE_WORD = re.compile(r"\bVariable(?:Italic|Upright|Roman)?\b", re.I)
 
 
 def split_variable_subfamily(subfamily: str | None) -> tuple[str, str]:
-    """Split subfamily into (prefix, suffix) around the word Variable or VariableItalic.
+    """Split subfamily into (prefix, suffix) around Variable / VariableItalic / pairing markers.
 
     .. deprecated::
         Prefer ``parse_variable_filename()`` and ``build_id*_from_variable_slots()``.
@@ -1112,13 +1118,16 @@ def split_variable_subfamily(subfamily: str | None) -> tuple[str, str]:
 
     Prefix is text before the token, suffix is text after. Both are normalized
     (strip, collapse spaces). Used for ID4 (prefix + suffix as third part) and
-    ID17 (prefix in fallback).
+    ID17 (prefix in fallback). Glued pairing markers (VariableUpright, VariableRoman)
+    and VariableItalic are consumed as the Variable token (empty suffix).
 
     Examples:
         "Black Variable" -> ("Black", "")
         "Variable Black" -> ("", "Black")
         "Black Variable Italic" -> ("Black", "Italic")
         "VariableItalic" -> ("", "")
+        "VariableUpright" -> ("", "")
+        "VariableRoman" -> ("", "")
     """
     if not subfamily or not subfamily.strip():
         return "", ""
@@ -1134,9 +1143,9 @@ def split_variable_subfamily(subfamily: str | None) -> tuple[str, str]:
 
 
 def strip_only_variable_token(text: str | None) -> str | None:
-    """Remove only the words Variable and VariableItalic (word boundaries). Do not remove VF/GX/Flex.
+    """Remove Variable / VariableItalic / VariableUpright / VariableRoman (word boundaries).
 
-    Used for ID1 variable so "Font Variable Black" -> "Font Black".
+    Does not remove VF/GX/Flex. Used for ID1 variable so "Font Variable Black" -> "Font Black".
     """
     text = normalize_empty(text)
     if is_empty(text):
@@ -1147,15 +1156,29 @@ def strip_only_variable_token(text: str | None) -> str | None:
 
 
 def strip_variable_tokens(text: str | None) -> str | None:
-    """Strip Variable/VF/GX/Flex tokens from text."""
+    """Strip Variable/VF/GX/Flex tokens from text.
+
+    Also strips glued pairing markers (VariableUpright, VariableRoman) and spaced
+    forms ("Variable Upright", "Variable Roman") so family cleanup does not leave
+    an orphaned upright/roman token. Longer Variable+marker forms are removed
+    before bare ``Variable`` so spaced pairing markers are not split apart.
+    """
     text = normalize_empty(text)
     if is_empty(text):
         return None
 
     s = str(text)
-    s, _ = RE_VARIABLE_TOKENS.subn("", s)
-    s = re.sub(r"(?i)(?:^|[-_\s])Variable(?:Italic)?(?=$|[-_\s])", " ", s)
-    s = re.sub(r"(?i)(?:^|[-_\s])(VF|GX|Flex)(?=$|[-_\s])", " ", s)
+    # Variable + optional glued/spaced marker (before bare Variable strip)
+    s = re.sub(
+        r"(?i)(?<![A-Za-z0-9])Variable(?:\s+(?:Italic|Upright|Roman)|(?:Italic|Upright|Roman))?(?![A-Za-z0-9])",
+        " ",
+        s,
+    )
+    s, _ = RE_VARIABLE_TOKENS.subn(" ", s)
+    s = re.sub(r"(?i)(?<![A-Za-z0-9])(VF|GX|Flex)(?![A-Za-z0-9])", " ", s)
+    # Drop separators left at the edges after token removal
+    s = re.sub(r"^[-_\s]+|[-_\s]+$", "", s)
+    s = " ".join(s.split())
 
     return normalize_empty(s)
 
@@ -1202,6 +1225,8 @@ def build_id17_variable_default(
         return build_id17_from_variable_slots(variable_slots)
 
     slope = slope_from_filename
+    if is_elidable_vf_slope(slope):
+        slope = None
     if slope is None and is_italic:
         slope = "Italic"
     prefix = normalize_empty(prefix_from_filename)

@@ -122,8 +122,9 @@ def _canonical_slope(token: str) -> Optional[str]:
         return _SLOPE_CANONICAL[key]
     if key in {s.lower() for s in KNOWN_VF_SLOPES}:
         return token.strip().title()
-    if key in {s.lower() for s in ELIDABLE_VF_FILENAME_SLOPES}:
-        return "Upright"
+    for slope in ELIDABLE_VF_FILENAME_SLOPES:
+        if slope.lower() == key:
+            return slope
     return None
 
 
@@ -267,7 +268,9 @@ def parse_variable_filename(
             if canon:
                 slope = canon
             elif token.lower() in _ELIDABLE_AFTER_VARIABLE:
-                slope = "Upright" if token.lower() == "upright" else None
+                # Regular/Normal: fully elided (not a pairing marker).
+                # Upright/Roman are handled above via ELIDABLE_VF_FILENAME_SLOPES.
+                slope = None
             elif _is_bespoke_suffix(token):
                 bespoke = token
             else:

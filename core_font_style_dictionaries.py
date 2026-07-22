@@ -37,14 +37,17 @@ COMPOUND_NORMALIZATIONS = {
     "VariableOblique-Variable": "VariableOblique",
     "VariableSlanted-Variable": "VariableSlanted",
     "VariableUpright-Variable": "VariableUpright",
+    "VariableRoman-Variable": "VariableRoman",
     "Variable-Variable": "Variable",
     "Variable-Italic": "VariableItalic",
     "Variable-Oblique": "VariableOblique",
     "Variable-Slanted": "VariableSlanted",
     "Variable-Upright": "VariableUpright",
+    "Variable-Roman": "VariableRoman",
     "VariableVariable": "Variable",
     "VariableSlanted": "Variable Slanted",
     "VariableUpright": "Variable Upright",
+    "VariableRoman": "Variable Roman",
     # Common substitutions
     # "Roman": "Regular",  # REMOVED - Roman is a valid regular-equivalent
     "Round-ed": "Rounded",
@@ -215,8 +218,9 @@ KNOWN_VF_SLOPES: frozenset[str] = frozenset(
     {"Italic", "Oblique", "Slanted", "Inclined", "Slant"}
 )
 
-# Filename pairing marker: elide from ID1/ID4/ID17 (like Regular)
-ELIDABLE_VF_FILENAME_SLOPES: frozenset[str] = frozenset({"Upright"})
+# Filename pairing markers: elide from ID1/ID4/ID17 (like Regular).
+# Used when a family has separate upright/roman and italic VF files.
+ELIDABLE_VF_FILENAME_SLOPES: frozenset[str] = frozenset({"Upright", "Roman"})
 
 MODIFIERS = {"Semi", "Demi", "Extra", "Ultra", "Super"}
 

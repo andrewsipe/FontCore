@@ -97,6 +97,7 @@ def apply_table_edits(
     _wipe_existing_table_data(font, protected_ids)
 
     _write_name_records(font, axis_defs, plan)
+    _repoint_fvar_axis_names(font, plan.axis_name_ids)
     if fix_fvar_default:
         _fix_fvar_defaults(font, axis_defs)
     _write_fvar_instances(font, axis_defs, plan, elided_fallback_name)
@@ -131,6 +132,15 @@ def generate_ttx_additions(
         parts.append(writer.getvalue().rstrip())
     parts.append("</ttFont>")
     return "\n".join(parts) + "\n"
+
+
+def _repoint_fvar_axis_names(font: TTFont, axis_name_ids: dict[str, int]) -> None:
+    if "fvar" not in font:
+        return
+    for axis in font["fvar"].axes:
+        new_id = axis_name_ids.get(axis.axisTag)
+        if new_id is not None:
+            axis.axisNameID = new_id
 
 
 def _write_name_records(font: TTFont, axis_defs: List[AxisDef], plan: NameIDPlan) -> None:

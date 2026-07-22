@@ -60,6 +60,26 @@ class NameIDPlan:
     elided_fallback_id: int = 0
     free_start: int = 256
     free_end: int = 255
+    nameid_strategy: str = "preserve"
+    ot_reflow_end: int = 255
+
+
+def preserved_design_axis_name_ids(font: TTFont, rebuilt_tags: Set[str]) -> Set[int]:
+    """STAT DesignAxisRecord name IDs for axes not rebuilt by this commit."""
+    preserved: Set[int] = set()
+    if "STAT" not in font:
+        return preserved
+    stat = font["STAT"].table
+    design = getattr(stat, "DesignAxisRecord", None)
+    if not design or not design.Axis:
+        return preserved
+    for ax in design.Axis:
+        if ax.AxisTag in rebuilt_tags:
+            continue
+        nid = ax.AxisNameID
+        if nid >= 256:
+            preserved.add(nid)
+    return preserved
 
 
 def audit_nameids(font: TTFont, ot_labels: List[OTLabelRecord]) -> Dict[int, str]:
@@ -148,12 +168,19 @@ def compose_postscript_instance_name(family_prefix: str, subfamily_name: str) ->
     """
     Build PostScript name for one fvar instance.
 
-    Matches common VF patterns: FamilyPrefix-CondensedBold (no spaces in style).
+    One hyphen separates the family-side prefix from the style tail.
+    When the style segment contains an internal hyphen (@pshyphen split),
+    the portion before that hyphen is concatenated onto the family prefix.
     """
     prefix = sanitize_postscript(family_prefix.strip()) or "Font"
     style = sanitize_postscript(subfamily_name.strip())
     if not style or style.lower() == "regular":
         return f"{prefix}-Regular"
+    if "-" in style:
+        before, after = style.split("-", 1)
+        if after:
+            return f"{prefix}{before}-{after}"
+        return f"{prefix}-{before}"
     return f"{prefix}-{style}"
 
 
@@ -194,12 +221,16 @@ def build_allocation_plan(
     elided_fallback_name: str = "Regular",
     *,
     allocate_postscript_names: bool = True,
+    nameid_strategy: str = "preserve",
+    ot_reflow_end: int | None = None,
 ) -> NameIDPlan:
     """Produce nameID allocation plan without modifying the font."""
+    reflow_mode = nameid_strategy == "reflow"
+    ot_block_end = ot_reflow_end if ot_reflow_end is not None else 255
     used = audit_nameids(font, ot_labels)
     protected = dict(used)
 
-    free_start = (max(protected.keys()) + 1) if protected else 256
+    free_start = ot_block_end + 1 if reflow_mode else ((max(protected.keys()) + 1) if protected else 256)
     cursor = free_start
 
     # 1. Axis display names (reallocated fresh at 256+, decoupled from 2/6/17)
@@ -267,6 +298,8 @@ def build_allocation_plan(
         elided_fallback_id=elided_fallback_id,
         free_start=free_start,
         free_end=free_end,
+        nameid_strategy=nameid_strategy,
+        ot_reflow_end=ot_block_end,
     )
 
 
@@ -304,6 +337,7 @@ __all__ = [
     "audit_nameids",
     "build_allocation_plan",
     "check_for_collisions",
+    "preserved_design_axis_name_ids",
     "compose_instance_name",
     "compose_postscript_instance_name",
     "derive_family_ps_prefix",

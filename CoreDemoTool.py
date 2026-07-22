@@ -675,6 +675,9 @@ def demo_name_policies(files: List[str], args: argparse.Namespace):
         "Helvetica-Variable",
         "Helvetica-VF",
         "Helvetica-VariableItalic",
+        "Helvetica-VariableUpright",
+        "Helvetica-VariableRoman",
+        "Helvetica Variable Roman",
         "Helvetica-VF-Bold",
     ]
 
@@ -693,6 +696,7 @@ def demo_name_policies(files: List[str], args: argparse.Namespace):
         "ReaderProCondensed-Variable.ttf",
         "ReaderPro-CondensedVariable.ttf",
         "FL_RareText-VariableUpright.ttf",
+        "FL_RareText-VariableRoman.ttf",
         "FL_Rare-VariableCursive.ttf",
     ]
 
