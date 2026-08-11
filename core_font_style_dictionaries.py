@@ -211,11 +211,39 @@ OPTICAL_BASES = {
     "Banner",
 }
 
-SLOPE_BASES = {"Italic", "Oblique", "Slanted", "Inclined"}
+# Core slope vocabulary used by filename tools, NameID slope inference, and audits.
+# Keep aligned with Filename_Tools/FNT_ReorderSlopes.BASE_SLOPE_TERMS (+ common aliases).
+SLOPE_BASES = {
+    "Italic",
+    "Oblique",
+    "Slanted",
+    "Slant",
+    "Inclined",
+    "Backslanted",
+    "Backslant",
+    "Reverse",
+    "Retalic",
+    "Cursive",
+    "Kursiv",
+}
+
+# Multi-word slopes that count as one unit (not "double slope").
+ACCEPTABLE_COMPOUND_SLOPES: frozenset[str] = frozenset(
+    {
+        "Reverse Italic",
+        "Reverse Slanted",
+    }
+)
 
 # Slopes retained in display names (ID4) and ID17 when present in filename
-KNOWN_VF_SLOPES: frozenset[str] = frozenset(
-    {"Italic", "Oblique", "Slanted", "Inclined", "Slant"}
+KNOWN_VF_SLOPES: frozenset[str] = frozenset(SLOPE_BASES) | ACCEPTABLE_COMPOUND_SLOPES
+
+# Lowercase tokens that mean "this name already has a slope" (do not append Italic).
+# Includes spaced "Back Slanted" as seen in some filenames/parsed subfamilies.
+ITALIC_LIKE_SLOPE_TERMS: frozenset[str] = frozenset(
+    {s.lower() for s in SLOPE_BASES}
+    | {s.lower() for s in ACCEPTABLE_COMPOUND_SLOPES}
+    | {"back slanted"}
 )
 
 # Filename pairing markers: elide from ID1/ID4/ID17 (like Regular).

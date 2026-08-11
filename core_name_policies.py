@@ -50,7 +50,10 @@ from typing import Any, Optional, Dict, List, TYPE_CHECKING
 # New imports for enhanced functionality
 from FontCore.core_logging_config import get_logger
 from FontCore.core_string_utils import normalize_empty, is_empty, join_nonempty
-from FontCore.core_font_style_dictionaries import ELIDABLE_VF_FILENAME_SLOPES
+from FontCore.core_font_style_dictionaries import (
+    ELIDABLE_VF_FILENAME_SLOPES,
+    ITALIC_LIKE_SLOPE_TERMS,
+)
 
 if TYPE_CHECKING:
     from FontCore.core_variable_filename_parser import VariableFilenameSlots
@@ -184,12 +187,37 @@ def detect_compound_modifier_patterns(
 
 
 RE_REGULAR = re.compile(r"\b(Regular|Roman)\b", re.I)
+RE_REVERSE_ITALIC = re.compile(r"\bReverse\s+Italic\b", re.I)
+RE_REVERSE_SLANTED = re.compile(r"\bReverse\s+Slanted\b", re.I)
 RE_ITALIC = re.compile(r"\bItalic\b", re.I)
 RE_OBLIQUE = re.compile(r"\bOblique\b", re.I)
+RE_BACKSLANTED = re.compile(r"\bBack\s*Slanted\b|\bBackslanted\b", re.I)
+RE_BACKSLANT = re.compile(r"\bBackslant\b", re.I)
 RE_SLANTED = re.compile(r"\bSlanted\b", re.I)
+RE_SLANT = re.compile(r"\bSlant\b", re.I)
+RE_INCLINED = re.compile(r"\bInclined\b", re.I)
+RE_RETALIC = re.compile(r"\bRetalic\b", re.I)
+RE_REVERSE = re.compile(r"\bReverse\b", re.I)
+RE_CURSIVE = re.compile(r"\b(Cursive|Kursiv)\b", re.I)
 RE_BOOK = re.compile(r"\bBook\b", re.I)
 RE_NORMAL = re.compile(r"\bNormal\b", re.I)
 RE_VARIABLE_TOKENS = re.compile(r"\b(Variable|VF|GX|Flex)\b", re.I)
+
+# (pattern, canonical slope label) — compound / longer forms first
+_STYLE_SLOPE_EXTRACTORS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (RE_REVERSE_ITALIC, "Reverse Italic"),
+    (RE_REVERSE_SLANTED, "Reverse Slanted"),
+    (RE_ITALIC, "Italic"),
+    (RE_OBLIQUE, "Oblique"),
+    (RE_BACKSLANTED, "Backslanted"),
+    (RE_BACKSLANT, "Backslant"),
+    (RE_SLANTED, "Slanted"),
+    (RE_INCLINED, "Inclined"),
+    (RE_RETALIC, "Retalic"),
+    (RE_CURSIVE, "Cursive"),
+    (RE_REVERSE, "Reverse"),
+    (RE_SLANT, "Slant"),
+)
 
 
 def _strip_token(pattern: "re.Pattern[str]", text: str) -> tuple[str, bool]:
@@ -200,19 +228,11 @@ def _strip_token(pattern: "re.Pattern[str]", text: str) -> tuple[str, bool]:
 
 def _extract_slope_from_style(style: str) -> tuple[str, str | None]:
     """Extract slope term from style, returning (cleaned_style, slope)."""
-    slope = None
-
-    if RE_ITALIC.search(style):
-        slope = "Italic"
-        style, _ = _strip_token(RE_ITALIC, style)
-    elif RE_OBLIQUE.search(style):
-        slope = "Oblique"
-        style, _ = _strip_token(RE_OBLIQUE, style)
-    elif RE_SLANTED.search(style):
-        slope = "Slanted"
-        style, _ = _strip_token(RE_SLANTED, style)
-
-    return style, slope
+    for pattern, label in _STYLE_SLOPE_EXTRACTORS:
+        if pattern.search(style):
+            style, _ = _strip_token(pattern, style)
+            return style, label
+    return style, None
 
 
 def _apply_regular_synonym_mode(
@@ -1184,7 +1204,13 @@ def strip_variable_tokens(text: str | None) -> str | None:
 
 
 def _strip_trailing_slope_tokens(text: str) -> str:
-    s = re.sub(r"[-_\s]*(Italic|Oblique|Slanted)$", "", text, flags=re.I).strip()
+    s = re.sub(
+        r"[-_\s]*(Reverse\s+Italic|Reverse\s+Slanted|Italic|Oblique|Back\s*Slanted|"
+        r"Backslanted|Backslant|Slanted|Inclined|Retalic|Cursive|Kursiv|Reverse|Slant)$",
+        "",
+        text,
+        flags=re.I,
+    ).strip()
     return s
 
 
@@ -1235,17 +1261,19 @@ def build_id17_variable_default(
     if not combined:
         return "Regular"
     # Pure slope term -> prefix with "Regular "
-    if slope_n and not prefix and slope_n.strip().lower() in {"italic", "oblique", "slanted"}:
+    if slope_n and not prefix and slope_n.strip().lower() in {
+        s.lower() for s in ITALIC_LIKE_SLOPE_TERMS
+    }:
         return f"Regular {slope_n}"
     return combined
 
 
 def ensure_regular_prefix_for_pure_slope(subfamily: str | None) -> str | None:
-    """If subfamily is just Italic/Oblique/Slanted, prefix with 'Regular '."""
+    """If subfamily is just a known slope term, prefix with 'Regular '."""
     if not subfamily:
         return subfamily
     s = (subfamily or "").strip()
-    if s.lower() in {"italic", "oblique", "slanted"}:
+    if s.lower() in {t.lower() for t in ITALIC_LIKE_SLOPE_TERMS}:
         return f"Regular {s}"
     return subfamily
 

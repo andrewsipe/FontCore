@@ -14,6 +14,7 @@ from FontCore.core_ttx_table_io import (
     count_mac_name_records_ttx,
     count_mac_name_records_binary,
 )
+from pathlib import Path
 from typing import Optional, Union
 
 # New imports for enhanced functionality
@@ -27,6 +28,8 @@ from FontCore.core_variable_filename_parser import (
     format_variable_filename,
     variable_slots_from_path,
 )
+from FontCore.core_font_style_dictionaries import ITALIC_LIKE_SLOPE_TERMS
+import re
 
 logger = get_logger(__name__)
 
@@ -42,12 +45,70 @@ console = cs.get_console()
 #   None  — failure (replacer should have logged via show_error); counted as errors
 FileProcessResult = Union[bool, None]
 
+# Longer terms first so "backslanted" wins over "slanted" / "slant".
+_ITALIC_LIKE_SLOPE_RE = re.compile(
+    r"(?<![a-z])(?:"
+    + "|".join(
+        re.escape(t) for t in sorted(ITALIC_LIKE_SLOPE_TERMS, key=len, reverse=True)
+    )
+    + r")(?![a-z])",
+    re.I,
+)
+
 
 def is_blank_name_value(text: Optional[str]) -> bool:
     """True if a name-table string is missing or whitespace-only."""
     if text is None:
         return True
     return str(text).strip() == ""
+
+
+def has_italic_like_slope_term(text: Optional[str]) -> bool:
+    """True when text already names a slope (Italic, Oblique, Slanted, Backslanted, …)."""
+    if not text:
+        return False
+    return bool(_ITALIC_LIKE_SLOPE_RE.search(str(text)))
+
+
+def infer_slope_when_italic(
+    style: Optional[str],
+    explicit_slope: Optional[str],
+    *,
+    fp_enabled: bool = False,
+) -> Optional[str]:
+    """Infer slope for italic fonts when no explicit ``-sl`` flag is set.
+
+    When filename parsing is active, trust the parsed name and do not inject
+    slope from font metadata. Otherwise append ``Italic`` only when the style
+    string does not already include a slope term.
+    """
+    if explicit_slope:
+        return explicit_slope
+    if fp_enabled:
+        return None
+    if has_italic_like_slope_term(style):
+        return None
+    return "Italic"
+
+
+def resolve_filename_parser_target(
+    filepath: str, fp_arg: Union[str, bool, None]
+) -> Optional[str]:
+    """Choose which path ``parse_filename`` should read for one font file.
+
+    - ``None``: filename parsing disabled
+    - ``""`` or ``True``: parse the current file path
+    - directory path: treat like per-file parsing (folder targets are not samples)
+    - file path: use that sample path for every file in the batch
+    """
+    if fp_arg is None:
+        return None
+    if fp_arg is True or fp_arg == "":
+        return filepath
+    sample = Path(str(fp_arg))
+    if sample.is_file():
+        return str(fp_arg)
+    return filepath
 
 
 class ProcessingStats:
