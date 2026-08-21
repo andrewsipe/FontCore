@@ -251,6 +251,8 @@ def ot_reflow_end_from_groups(ot_groups: Dict[int, List[OTLabelSite]]) -> int:
 
 def copy_name_records_for_id(font: TTFont, old_id: int, new_id: int) -> None:
     """Duplicate every platform/encoding/language record from old_id to new_id."""
+    if old_id == new_id:
+        return
     if "name" not in font:
         return
     name_table = font["name"]
