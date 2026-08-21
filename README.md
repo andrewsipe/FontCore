@@ -1,10 +1,12 @@
 # Core Library
 
-Shared utilities library used by all font processing scripts in this project.
+Shared utilities library used by font processing scripts in this monorepo.
+
+Declutter / product-pass notes: see `PRODUCT_REFINEMENT_NOTES.md`.
 
 ## Overview
 
-The `core/` directory contains reusable modules that provide consistent functionality across all scripts:
+Modules live at the package root as `core_*.py` (not a nested `core/` folder):
 
 - **Console styling** - Unified output formatting with rich text support
 - **File collection** - Font file discovery and filtering
