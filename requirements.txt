@@ -1,6 +1,7 @@
-# Core library dependencies
-# These are the base dependencies for the core utilities library.
-# All other scripts depend on core, so these are effectively required everywhere.
-
-fonttools>=4.40.0
-rich>=13.0.0
+# Installable via pyproject.toml (preferred):
+#   pip install -e .
+#   pipx runpip <tool> install -e /path/to/FontCore
+#
+# Runtime dependencies (kept in sync with [project.dependencies]):
+fonttools>=4.40.0,<5
+rich>=13.0.0,<14

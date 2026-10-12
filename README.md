@@ -1,12 +1,37 @@
-# Core Library
+# FontCore
 
 Shared utilities library used by font processing scripts in this monorepo.
 
 Declutter / product-pass notes: see `PRODUCT_REFINEMENT_NOTES.md`.
 
+## Layout
+
+Installable package under `src/FontCore/` (import name **`FontCore`**, distribution name **`fontcore`**):
+
+```
+FontCore/
+  pyproject.toml
+  src/FontCore/          # import package
+    __init__.py
+    core_*.py
+  tests/
+  CoreDemoTool.py
+```
+
+## Install
+
+```bash
+cd FontCore
+python3 -m pip install -e .
+# or for a pipx tool that needs FontCore:
+#   pipx inject <tool> /path/to/FontCore
+```
+
+Runtime dependencies: `fonttools`, `rich` only (no optional prompt UI packages).
+
 ## Overview
 
-Modules live at the package root as `core_*.py` (not a nested `core/` folder):
+Modules live in `src/FontCore/` as `core_*.py`:
 
 - **Console styling** - Unified output formatting with rich text support
 - **File collection** - Font file discovery and filtering
@@ -131,24 +156,16 @@ Style word dictionaries:
 
 ## Demo Tool
 
-Run `CoreDemoTool.py` to see examples of all core functionality:
+Run `CoreDemoTool.py` from the FontCore repo root (with the package on `PYTHONPATH` or installed editable):
 
 ```bash
-python CoreDemoTool.py console    # Console styling demo
-python CoreDemoTool.py sorter     # Font sorting demo
-python CoreDemoTool.py parser     # Filename parsing demo
-python CoreDemoTool.py all        # Run all demos
+PYTHONPATH=src python CoreDemoTool.py console
+PYTHONPATH=src python CoreDemoTool.py sorter /path/to/fonts/
+PYTHONPATH=src python CoreDemoTool.py parser "Helvetica-Bold.otf"
+PYTHONPATH=src python CoreDemoTool.py all
 ```
 
-## Dependencies
-
-See `requirements.txt` for dependencies:
-- `fonttools` - Font file manipulation
-- `rich` - Console styling (optional but recommended)
-
 ## Usage in Scripts
-
-All scripts in this project import from core:
 
 ```python
 import FontCore.core_console_styles as cs
@@ -156,5 +173,5 @@ from FontCore.core_file_collector import collect_font_files
 from FontCore.core_filename_parts_parser import parse_filename
 ```
 
-The core modules are designed to be imported directly. In standalone repositories, the `core/` directory is included directly in each project repository.
+In the monorepo, project `FontCore` symlinks point at `FontCore/src/FontCore` so `import FontCore…` works when the project directory is on `PYTHONPATH`. Installed tools (pip / pipx) use the packaged distribution instead.
 
