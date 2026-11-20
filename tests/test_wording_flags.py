@@ -92,3 +92,51 @@ def test_plain_text_prompt_prints_no_markup(monkeypatch, capsys):
     assert "About to change 2 files." in out
     assert "(y/N/q)" in out
     assert "[input]" not in out and "[bold]" not in out and "[/" not in out
+
+
+# --- wording: header, plan block, deletion summary -------------------------------------------
+
+
+def test_header_names_the_record_not_the_script(tmp_path, capsys):
+    out = _run(tmp_path, capsys)
+    assert "Manufacturer (nameID 8)" in out
+    assert "Processing nameID=" not in out
+    assert "Replacer" not in out
+
+
+def test_plan_block_has_no_script_line_for_replacers(tmp_path, capsys):
+    out = _run(tmp_path, capsys)
+    assert "Before starting:" in out
+    assert "This will:" in out
+    assert "Script:" not in out and "Pre-flight" not in out and "Operations to perform" not in out
+
+
+def test_plan_block_can_name_a_task(capsys):
+    cs.fmt_preflight_checklist("Catalog Metadata Apply", ["Fill nameID 8"])
+    out = capsys.readouterr().out
+    assert "Task: Catalog Metadata Apply" in out
+    assert "1. Fill nameID 8" in out
+
+
+def test_mac_and_flag_wording_drops_platform_ids_from_status_lines(tmp_path, capsys):
+    font = _font(tmp_path / "Probe-Regular.ttf")
+    args = SimpleNamespace(
+        dry_run=True, yes=True, recursive=False, filename_parser=False,
+        delete_mac_records=True, empty_fields_only=True,
+    )
+    run_workflow([str(font)], args, lambda *a, **k: False, "T", 8, "Manufacturer", [])
+    out = " ".join(capsys.readouterr().out.split())  # the console wraps long lines
+    assert "Mac name records will be removed" in out
+    assert "platformID" not in out
+    assert "remove all Mac name records (platform 1) before processing" in out
+    assert "fill only the blank Windows English name records; leave existing text alone" in out
+
+
+def test_deletion_summary_uses_one_name_for_mac_records():
+    text = cs.fmt_deletion_operation(name_ids=[1, 2], mac_records=True, windows_english_only=True)
+    assert "Mac name records (platform 1)" in text
+    assert "Macintosh" not in text
+    assert (
+        "every name record except Windows English (platform 3, encoding 1, language 0x409)"
+        in text
+    )

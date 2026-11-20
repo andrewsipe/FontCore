@@ -1,6 +1,6 @@
 # Wording audit: FontCore's shared messages
 
-2026-11-20, with the `cli-writing` skill. **Section A applied 2026-11-20 (FontCore 0.2.2).** B and C are still proposals. Pick by number
+2026-11-20, with the `cli-writing` skill. **Sections A (0.2.2) and B (0.2.3) applied 2026-11-20.** C is still a proposal. Pick by number
 ("all of A", "B2, B4", "skip C3"), or rewrite any line yourself and I'll use yours.
 
 Scope: the messages every replacer prints through `core_nameid_replacer_base.py` and `core_console_styles.py`,
@@ -26,15 +26,15 @@ the original stays unless you say otherwise.
 
 | # | Where | Now | Proposed | Kind |
 |---|---|---|---|---|
-| B1 | Checklist line (`:596`) | `Mac name records will be removed (platformID=1)` | `Mac name records will be removed` | jargon: platform numbers stay in the flag's help, where someone might match them to another tool |
-| B2 | Flag list, `-dmr` (`:586`) | `-dmr, --delete-mac-records : Remove all Mac name records (platformID=1) before processing` | `-dmr, --delete-mac-records : remove all Mac name records (platform 1) before processing` | jargon: lowercase fragment like the finished tools; `platformID=1` becomes `platform 1`; scope kept |
-| B3 | Flag list, `--empty-fields-only` (`:591`) | `Only fill blank Windows English name entries; do not overwrite existing text` | `fill only the blank Windows English name records; leave existing text alone` | term: "name entries" → "name records"; scope kept |
-| B4 | Deletion summary (`core_console_styles.py:954`) | `Macintosh records (platformID=1)` | `Mac name records (platform 1)` | term: "Macintosh records" and "Mac name records" both appear |
-| B5 | Deletion summary (`:959`) | `non-Windows/English/Latin records (keep only platformID=3, platEncID=1, langID=0x409)` | `every name record except Windows English (platform 3, encoding 1, language 0x409)` *(verify)* | jargon, but the exact IDs stay; says what is kept instead of "non-… records" |
-| B6 | Header (`:156`) | `Name ID 8 Replacer - Processing nameID=8 records` | `Manufacturer name (nameID 8)` | clear: the old header repeats itself and names an internal "replacer" |
-| B7 | Checklist (`core_console_styles.py:869`) | `Script: NameID 8 Replacer` | `Command: fontnameid 8` | jargon: "Script" and the old script name |
-| B8 | Checklist (`core_console_styles.py:867`) | `Pre-flight checklist:` and `Operations to perform:` | `Before it starts:` and `What will happen:` | jargon: "pre-flight" and "operations" are developer words |
-| B9 | Checklist, replace line (`core_console_styles.py:983`) | `Replace nameID 8 (Manufacturer) with: Acme` | `Set the manufacturer name (nameID 8) to: Acme` *(verify)* | clear: with `--empty-fields-only` or a missing record nothing is replaced, so "set" is exact; plain name first, ID in parentheses |
+| B1 ✓ | Checklist line (`:596`) | `Mac name records will be removed (platformID=1)` | `Mac name records will be removed` | jargon: platform numbers stay in the flag's help, where someone might match them to another tool |
+| B2 ✓ | Flag list, `-dmr` (`:586`) | `-dmr, --delete-mac-records : Remove all Mac name records (platformID=1) before processing` | `-dmr, --delete-mac-records : remove all Mac name records (platform 1) before processing` | jargon: lowercase fragment like the finished tools; `platformID=1` becomes `platform 1`; scope kept |
+| B3 ✓ | Flag list, `--empty-fields-only` (`:591`) | `Only fill blank Windows English name entries; do not overwrite existing text` | `fill only the blank Windows English name records; leave existing text alone` | term: "name entries" → "name records"; scope kept |
+| B4 ✓ | Deletion summary (`core_console_styles.py:954`) | `Macintosh records (platformID=1)` | `Mac name records (platform 1)` | term: "Macintosh records" and "Mac name records" both appear |
+| B5 ✓ | Deletion summary (`:959`) | `non-Windows/English/Latin records (keep only platformID=3, platEncID=1, langID=0x409)` | `every name record except Windows English (platform 3, encoding 1, language 0x409)` *(verify)* | jargon, but the exact IDs stay; says what is kept instead of "non-… records" |
+| B6 ✓ (changed) | Header (`:156`) | `Name ID 8 Replacer - Processing nameID=8 records` | `Manufacturer name (nameID 8)` | clear: the old header repeats itself and names an internal "replacer" |
+| B7 ✓ (changed) | Checklist (`core_console_styles.py:869`) | `Script: NameID 8 Replacer` | `Command: fontnameid 8` | jargon: "Script" and the old script name |
+| B8 ✓ | Checklist (`core_console_styles.py:867`) | `Pre-flight checklist:` and `Operations to perform:` | `Before it starts:` and `What will happen:` | jargon: "pre-flight" and "operations" are developer words |
+| B9 (deferred) | Checklist, replace line (`core_console_styles.py:983`) | `Replace nameID 8 (Manufacturer) with: Acme` | `Set the manufacturer name (nameID 8) to: Acme` *(verify)* | clear: with `--empty-fields-only` or a missing record nothing is replaced, so "set" is exact; plain name first, ID in parentheses |
 
 ## C. Clear / cut
 
@@ -67,3 +67,15 @@ the original stays unless you say otherwise.
 
 `core_logging_config.py` prints FontExtractor2-specific lines ("Font extraction finished", "Where fonts were detected
 (by site)"). Left alone.
+
+## Notes on B as applied
+
+- **B6** became `{description} (nameID {n})`, e.g. `Manufacturer (nameID 8)`, `Unique ID (nameID 3)`. NameID 0, 2 and 4 were passing
+  `Processing nameID=N records` as their description, so those three now pass `Copyright`, `Font Subfamily` and
+  `Full Font Name` (FontNameID).
+- **B7** dropped the `Script:` line for replacers instead of writing `Command: fontnameid 8`: the header right above already names
+  the ID, and FontCore shouldn't hard-code a command name. The Catalog Apply plan keeps a line, now `Task: Catalog Metadata Apply`.
+- **B8** became `Before starting:` and `This will:`.
+- **B9** belongs to FontNameID (`Replace nameID 8 (Manufacturer) with: …` is built in each replacer, and in
+  `fmt_replacement_operation` for IDs 0, 2 and 4). It goes into FontNameID's own wording pass.
+- Also seen, FontNameID's: the Deleter prints `Non-Windows/English records: N`, which should match B5.
