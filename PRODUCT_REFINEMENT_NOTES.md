@@ -15,17 +15,19 @@ Captured during the 2026-08-21 declutter pass. Use for a later product/release p
 
 ## Product-pass refinements (deferred)
 
-1. **Public package** — `pyproject.toml` + `src/FontCore/` layout landed (distribution `fontcore`). Still not published to PyPI; consumers can path/git install.
-2. **README drift** — Addressed: modules live under `src/FontCore/` as `core_*.py`.
-3. **Module map** — Generate/keep an explicit “who imports what” table for release docs (OT label trio is VarFontStudio/TableEditor-oriented; `core_gpos_repair` used by Variable_Instancer).
-4. **Test coverage** — Expand beyond name/catalog; OT reflow/scanner/suggest still lightly tested.
-5. **`raw_github_urls.txt`** — PushCore noise.
+1. **Distribution** — Done 2026-11-20: tools vendor the FontCore slice they need (`tools/vendor_fontcore.py`, `[tool.fontcore-vendor]` in each tool's `pyproject.toml`). Seven consumers; see the README table. Still not on PyPI, by design: a tool installs from GitHub with no FontCore step.
+2. **README drift** — Addressed 2026-11-20: vendoring workflow, consumers table, the 16 previously undocumented modules.
+3. **Module map** — The README now lists every module. Still missing: an explicit "who imports what" table (OT label trio is VarFontStudio/TableEditor-oriented; `core_gpos_repair` is used by Variable_Instancer). `vendor_fontcore.py` already computes the import closure and could print it.
+4. **Test coverage** — Expand beyond name/catalog; OT reflow/scanner/suggest still lightly tested. `tests/test_timestamp_guard.py` now enforces `recalcTimestamp=False`.
+5. **`raw_github_urls.txt`** — PushCore noise; lists the pre-`src/` flat layout. Safe to delete.
+6. **Pins** — FontCore's own `pyproject.toml` pins `rich>=13,<14` and Python `>=3.10`. Vendored tools declare `rich>=13` and run on rich 15 in practice (their tests pass). Decide whether to relax FontCore's pin.
+7. **`core_name_policies` / dictionaries** — `Cursive` is a slope in `core_font_style_dictionaries.py` (a style after the hyphen). A `Cursive` inside a family name never reaches the variable-filename parser. Revisit if the family-name case needs handling.
 
-## Known open items (2026-10 migration review)
+## Known open items (2026-11-20)
 
-- **1 failing test:** `tests/test_variable_name_policies.py::test_parse_variable_filename_fixtures[FL_Rare-VariableCursive.ttf…]` — fixture expects `Cursive` as `bespoke`, parser returns it as `slope` (`Cursive` is in the slope dictionary in `core_font_style_dictionaries.py`). Decide which is right, then fix the fixture or the dictionary. Pre-existing; not caused by the `src/` move.
-- **Consumers still pinned to the old flat layout:** older submodule pins (e.g. `Variable_Instancer`) predate `src/FontCore/`. Use the editable install below instead of submodules.
-- Not on PyPI; install from a sibling clone with `pip install -e ../FontCore`.
+- **Out-of-repo consumers:** older submodule pins (e.g. `Variable_Instancer`) predate `src/FontCore/` and the vendor workflow. Use `pip install -e ../FontCore` or adopt `[tool.fontcore-vendor]`. Not checked in this pass.
+- **FontExtractor2** no longer depends on a `fontcore` wheel; it vendors 14 modules like the others.
+- **Version stamps:** FontFixer, Ebrium, FontCatalyst and FileRenamer still say FontCore v0.2.0 in `FontCore/VENDOR.md`; their module contents are identical to v0.2.1 (`check` reports in sync).
 
 ## Do not lose
 

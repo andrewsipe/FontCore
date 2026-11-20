@@ -1,8 +1,46 @@
 # FontCore
 
-Shared utilities library used by font processing scripts in this monorepo.
+Shared utilities for the font tools: console output, file collection, filename and name-table policies, TTX helpers. It keeps the tools consistent with each other (same look, same file-collection rules, same naming decisions).
 
 Declutter / product-pass notes: see `PRODUCT_REFINEMENT_NOTES.md`.
+
+## How the tools use it
+
+Each tool **vendors** the slice of FontCore it needs, so a tool installs from GitHub on its own: no symlink, no sibling clone, no extra install step. A tool lists its modules in its own `pyproject.toml`:
+
+```toml
+[tool.fontcore-vendor]
+modules = ["core_console_styles", "core_file_collector"]
+```
+
+and `tools/vendor_fontcore.py` copies those modules, plus every FontCore module they import, into the tool's `FontCore/` folder and records which FontCore commit it came from in `FontCore/VENDOR.md`:
+
+```bash
+python tools/vendor_fontcore.py check            # every sibling project with the table (read-only)
+python tools/vendor_fontcore.py check ../Ebrium  # one project
+python tools/vendor_fontcore.py sync ../Ebrium   # copy, stamp, remove stale modules
+```
+
+`check` exits 1 when a project is out of sync. For each differing file it says whether the vendored copy is **BEHIND** FontCore (it matches an older revision) or has **LOCAL CHANGES** (it matches no revision; fold the fix back into FontCore). Never edit a vendored copy; fix it here, tag, and re-sync.
+
+Workflow for a change: edit `src/FontCore/`, run the tests, bump `version` in `pyproject.toml` and `src/FontCore/__init__.py`, commit, tag `vX.Y.Z`, then `sync` the consumers whose modules changed (`check` shows which) and release them.
+
+### Consumers (as of 2026-11-20, FontCore 0.2.1)
+
+| Tool | Version | Modules declared → vendored |
+|---|---|---|
+| [FontFixer](https://github.com/andrewsipe/FontFixer) | 1.3.4 | 4 → 4 |
+| [Ebrium](https://github.com/andrewsipe/Ebrium) | 4.0.1 | 6 → 6 |
+| [FontCatalyst](https://github.com/andrewsipe/FontCatalyst) | 1.3.6 | 5 → 5 |
+| [FontExtractor2](https://github.com/andrewsipe/FontExtractor2) | 0.2.2 | 8 → 14 |
+| [FileRenamer](https://github.com/andrewsipe/FileRenamer) (`fontrenamer`) | 0.2.0 | 9 → 14 |
+| [FontNameID](https://github.com/andrewsipe/FontNameID) (`fontnameid`) | 0.2.0 | 12 → 16 |
+| [Filename_Tools](https://github.com/andrewsipe/Filename_Tools) (`filenametools`) | 0.2.0 | 3 → 5 |
+
+### Conventions that the tests enforce
+
+- **Fonts keep their `head.modified` timestamp.** fontTools stamps the current time on every save unless the font was opened with `recalcTimestamp=False`. `tests/test_timestamp_guard.py` fails when a `TTFont(...)` open omits the flag; read-only opens are listed by function name in that test.
+- **Python 3.10+, `fonttools` and `rich` only.** No optional prompt UI packages (the old `use_questionary` setting is `False` and unused).
 
 ## Layout
 
@@ -11,23 +49,21 @@ Installable package under `src/FontCore/` (import name **`FontCore`**, distribut
 ```
 FontCore/
   pyproject.toml
-  src/FontCore/          # import package
-    __init__.py
-    core_*.py
+  src/FontCore/          # import package: core_*.py
   tests/
+  tools/vendor_fontcore.py
   CoreDemoTool.py
 ```
 
-## Install
+## Developing FontCore itself
 
 ```bash
 cd FontCore
-python3 -m pip install -e .
-# or for a pipx tool that needs FontCore:
-#   pipx inject <tool> /path/to/FontCore
+python3 -m pip install -e ".[dev]"
+pytest
 ```
 
-Runtime dependencies: `fonttools`, `rich` only (no optional prompt UI packages).
+Not on PyPI. A tool under development can use this checkout directly with `pip install -e ../FontCore`; released tools use their vendored copy instead.
 
 ## Overview
 
@@ -154,6 +190,27 @@ Style word dictionaries:
 - Optical size terms
 - Compound word normalizations
 
+### Other modules
+
+| Module | Purpose |
+|---|---|
+| `core_cli_help.py` | Rich-styled `--help` building blocks shared by FontFixer, Ebrium and FontCatalyst |
+| `core_console_config.py` | Console theme, labels and settings used by `core_console_styles` |
+| `core_font_extension.py` | Detect the real font format from magic bytes; validate and fix file extensions |
+| `core_font_metadata.py` | Extract PostScript names, version, vendor ID and format from font files |
+| `core_font_utils.py` | Validate PostScript names; sanitize folder and filename strings |
+| `core_gpos_repair.py` | GPOS PairPos repairs needed by the fontTools varLib instancer |
+| `core_metadata_catalog.py` | Load and query typographer.com family metadata JSON catalogs |
+| `core_name_attribution.py` | Resolve copyright and trademark attribution from metadata and CLI overrides |
+| `core_nameid_allocator.py` | NameID audit and allocation for variable-font STAT/fvar editing |
+| `core_namerecord_matcher.py` | Match name records in TTX and binary fonts through one interface |
+| `core_namerecord_writer.py` | Silent, library-friendly writers for Windows English (3/1/0x409) name records |
+| `core_ot_label_reflow.py` | Scan, classify, remap and patch OpenType feature-label nameIDs in GSUB/GPOS |
+| `core_ot_label_scanner.py` | Walk GSUB/GPOS FeatureParams for feature-label nameIDs |
+| `core_ot_label_suggest.py` | Conservative stylistic-set label suggestions (returns `None` rather than guess) |
+| `core_stat_builder.py` | Write STAT axis values, fvar named instances and related name entries |
+| `core_variable_filename_parser.py` | Parse variable-font filenames into semantic slots (static-aligned and legacy dialects) |
+
 ## Demo Tool
 
 Run `CoreDemoTool.py` from the FontCore repo root (with the package on `PYTHONPATH` or installed editable):
@@ -165,7 +222,7 @@ PYTHONPATH=src python CoreDemoTool.py parser "Helvetica-Bold.otf"
 PYTHONPATH=src python CoreDemoTool.py all
 ```
 
-## Usage in Scripts
+## Usage in tools
 
 ```python
 import FontCore.core_console_styles as cs
@@ -173,5 +230,4 @@ from FontCore.core_file_collector import collect_font_files
 from FontCore.core_filename_parts_parser import parse_filename
 ```
 
-In the monorepo, project `FontCore` symlinks point at `FontCore/src/FontCore` so `import FontCore…` works when the project directory is on `PYTHONPATH`. Installed tools (pip / pipx) use the packaged distribution instead.
-
+Inside a tool this import resolves to the tool's own vendored `FontCore/` folder.
