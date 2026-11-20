@@ -198,7 +198,7 @@ def check_and_show_mac_records(
                 count = count_mac_name_records_ttx(root)
             else:
                 # Binary font file
-                font = TTFont(filepath)
+                font = TTFont(filepath, recalcTimestamp=False)
                 count = count_mac_name_records_binary(font)
                 font.close()
 
@@ -260,7 +260,7 @@ def remove_mac_records_ttx(filepath: str, dry_run: bool = False) -> int:
 def remove_mac_records_binary(filepath: str, dry_run: bool = False) -> int:
     """Remove Mac name records (platformID=1) from binary font file. Returns count of removed records."""
     try:
-        font = TTFont(filepath)
+        font = TTFont(filepath, recalcTimestamp=False)
         name_table = font["name"]
 
         removed_count = 0

@@ -253,7 +253,7 @@ def deduplicate_namerecords_ttx(
 
 
 def open_font(path: str) -> TTFont:
-    return TTFont(path)
+    return TTFont(path, recalcTimestamp=False)
 
 
 def _iter_matching_binary(name_table, name_id: int, pid: int, eid: int, lang: int):
