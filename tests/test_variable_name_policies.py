@@ -74,7 +74,9 @@ from FontCore.core_variable_filename_parser import (
             None,
             "static_aligned",
         ),
-        ("FL_Rare-VariableCursive.ttf", "FL Rare", None, None, None, "Cursive", "static_aligned"),
+        # Cursive after the hyphen is the style part (subfamily position), so it is a slope.
+        # Cursive inside a family name is just part of the name and never reaches this parser.
+        ("FL_Rare-VariableCursive.ttf", "FL Rare", None, None, "Cursive", None, "static_aligned"),
         ("FL_Rare-VariableItalic.ttf", "FL Rare", None, None, "Italic", None, "static_aligned"),
         (
             "29LT_Baseet-VariableSlanted.ttf",
