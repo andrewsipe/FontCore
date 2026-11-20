@@ -46,11 +46,28 @@ the reader must match it to something else.
 - One idea per sentence. Two short sentences beat one with a semicolon.
 - Keep useful domain words: family, style, weight, width, slope, italic, PostScript name, WOFF2, variable font.
 
+## Plain, but exact
+
+Plain words replace jargon. They never replace a condition, a scope or an exception.
+
+- Keep every qualifier that changes what happens: which records (Windows English only, or every platform), which
+  fonts, what is overwritten, what is skipped, what happens when two options are combined.
+- When a precise term carries the scope, keep it and say what it means in a few words ("the Windows English name
+  record"), rather than dropping it for a vaguer one.
+- Test: if the person read only this line, could they do something different from what the tool will do? If yes,
+  the short version has lost something. Keep the longer text, or move the detail to the long help or the docs and
+  keep the one-liner accurate.
+- Don't add editorial words the code doesn't know ("old", "stale", "cleaner", "best") unless the code makes that
+  judgment and the text says how.
+- Don't pull a technical identifier out of help text if it is how the person finds the record elsewhere
+  (nameID 8 appears in other font tools). Put it in parentheses after the plain name.
+
 ## When not to rewrite
 
 - Leave clear, accurate wording alone. A change has to improve accuracy, understanding, consistency, brevity, or a tone
   that is wrong for the moment. "Sounds friendlier" is not enough.
-- Never strengthen a claim, drop a condition or change a scope just to shorten it.
+- Never strengthen a claim, drop a condition or change a scope just to shorten it. When unsure whether a shorter
+  line is still exact, keep the original and flag it in the audit as **clear (verify)** for the owner.
 - Don't change strings the task didn't touch.
 
 ## By element
