@@ -19,8 +19,8 @@ Captured during the 2026-08-21 declutter pass. Use for a later product/release p
 2. **README drift** — Addressed 2026-11-20: vendoring workflow, consumers table, the 16 previously undocumented modules.
 3. **Module map** — The README now lists every module. Still missing: an explicit "who imports what" table (OT label trio is VarFontStudio/TableEditor-oriented; `core_gpos_repair` is used by Variable_Instancer). `vendor_fontcore.py` already computes the import closure and could print it.
 4. **Test coverage** — Expand beyond name/catalog; OT reflow/scanner/suggest still lightly tested. `tests/test_timestamp_guard.py` now enforces `recalcTimestamp=False`.
-5. **`raw_github_urls.txt`** — PushCore noise; lists the pre-`src/` flat layout. Safe to delete.
-6. **Pins** — FontCore's own `pyproject.toml` pins `rich>=13,<14` and Python `>=3.10`. Vendored tools declare `rich>=13` and run on rich 15 in practice (their tests pass). Decide whether to relax FontCore's pin.
+5. **`raw_github_urls.txt`** — PushCore noise; lists the pre-`src/` flat layout. Safe to delete. (File removed and gitignored 2026-11-20.)
+6. **Pins** — Done 2026-11-20: `rich` cap `<14` removed (`rich>=13`); the 95 tests pass on rich 15 and on 13. `fonttools>=4.40.0,<5` stays.
 7. **`core_name_policies` / dictionaries** — `Cursive` is a slope in `core_font_style_dictionaries.py` (a style after the hyphen). A `Cursive` inside a family name never reaches the variable-filename parser. Revisit if the family-name case needs handling.
 
 ## Known open items (2026-11-20)

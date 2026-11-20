@@ -82,3 +82,6 @@ Desktop.ini
 # Font processing temporary files
 *.ttx.tmp
 temp_font_metadata.tmp
+
+# Generated URL list (not part of the project)
+raw_github_urls.txt

@@ -9,9 +9,9 @@ description = "Shared font-processing utilities (console, names, TTX, metadata) 
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    # Keep compatible with FontExtractor2's pins (fonttools==4.40, rich==13).
+    # Floors match the vendored tools (fonttools>=4.40, rich>=13); tests pass on rich 13 and 15.
     "fonttools>=4.40.0,<5",
-    "rich>=13.0.0,<14",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]

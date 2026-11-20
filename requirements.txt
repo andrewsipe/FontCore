@@ -4,4 +4,4 @@
 #
 # Runtime dependencies (kept in sync with [project.dependencies]):
 fonttools>=4.40.0,<5
-rich>=13.0.0,<14
+rich>=13.0.0
