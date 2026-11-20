@@ -63,6 +63,10 @@ python3 -m pip install -e ".[dev]"
 pytest
 ```
 
+### Wording
+
+The words people read (help text, messages, prompts, docs) follow the rules in `.claude/skills/cli-writing/SKILL.md`: who the reader is, the voice, standard flag wording, and a short list of preferred terms. It applies to every tool in the set.
+
 Not on PyPI. A tool under development can use this checkout directly with `pip install -e ../FontCore`; released tools use their vendored copy instead.
 
 ## Overview
