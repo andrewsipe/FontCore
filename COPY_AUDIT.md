@@ -1,6 +1,6 @@
 # Wording audit: FontCore's shared messages
 
-2026-11-20, with the `cli-writing` skill. **Sections A (0.2.2) and B (0.2.3) applied 2026-11-20.** C is still a proposal. Pick by number
+2026-11-20, with the `cli-writing` skill. **Sections A (0.2.2), B and C (0.2.4) applied 2026-11-20.** Pick by number
 ("all of A", "B2, B4", "skip C3"), or rewrite any line yourself and I'll use yours.
 
 Scope: the messages every replacer prints through `core_nameid_replacer_base.py` and `core_console_styles.py`,
@@ -40,14 +40,14 @@ the original stays unless you say otherwise.
 
 | # | Where | Now | Proposed | Kind |
 |---|---|---|---|---|
-| C1 | Prompt (`:300`) | `About to modify 3 file(s). Proceed?` followed by a second `Proceed? (y/N/q)` | `About to modify 3 files.` then `Proceed? (y/N/q)` | cut: "Proceed?" is asked twice; needs a plural helper so "1 file / 3 files" reads right |
-| C2 | Summary label (`core_console_styles.py:901`) | `Processing Completed!` | `Finished` | term: the skill avoids exclamation marks; the counts follow on the next lines |
-| C3 | File list (`:163`) | `Found 1 font file(s) to process:` | `Found 1 font file:` / `Found 3 font files:` | clear: needs the same plural helper |
-| C4 | Nothing to do (`:552`) | `No font files found to process.` | `No font files found.` | cut |
-| C5 | Mac warning (`:222`) | `Use -dmr to remove them before processing for cleaner results` | `Use -dmr to remove them before processing.` | cut: "cleaner results" is a judgment the code doesn't make |
-| C6 | Mac warning (`:220`) | `Macintosh name records detected in 2 file(s)` / `4 total records` | `Found 4 Mac name records in 2 files.` | term: matches the line shown when `-dmr` is on (`Found 3 Mac name record(s) in 1 file(s)…`) |
-| C7 | Active flags header (`:176`) | `Active Flags:` | `Options in use:` | clear |
-| C8 | Error summary (`core_error_handling.py:274`) | `Recoverable: NO` | `Recoverable: no` | term: only this line shouts |
+| C1 ✓ | Prompt (`:300`) | `About to modify 3 file(s). Proceed?` followed by a second `Proceed? (y/N/q)` | `About to modify 3 files.` then `Proceed? (y/N/q)` | cut: "Proceed?" is asked twice; needs a plural helper so "1 file / 3 files" reads right |
+| C2 ✓ | Summary label (`core_console_styles.py:901`) | `Processing Completed!` | `Finished` | term: the skill avoids exclamation marks; the counts follow on the next lines |
+| C3 ✓ | File list (`:163`) | `Found 1 font file(s) to process:` | `Found 1 font file:` / `Found 3 font files:` | clear: needs the same plural helper |
+| C4 ✓ | Nothing to do (`:552`) | `No font files found to process.` | `No font files found.` | cut |
+| C5 ✓ | Mac warning (`:222`) | `Use -dmr to remove them before processing for cleaner results` | `Use -dmr to remove them before processing.` | cut: "cleaner results" is a judgment the code doesn't make |
+| C6 ✓ | Mac warning (`:220`) | `Macintosh name records detected in 2 file(s)` / `4 total records` | `Found 4 Mac name records in 2 files.` | term: matches the line shown when `-dmr` is on (`Found 3 Mac name record(s) in 1 file(s)…`) |
+| C7 ✓ | Active flags header (`:176`) | `Active Flags:` | `Options in use:` | clear |
+| C8 ✓ | Error summary (`core_error_handling.py:274`) | `Recoverable: NO` | `Recoverable: no` | term: only this line shouts |
 
 ## D. Leave alone
 
@@ -79,3 +79,11 @@ the original stays unless you say otherwise.
 - **B9** belongs to FontNameID (`Replace nameID 8 (Manufacturer) with: …` is built in each replacer, and in
   `fmt_replacement_operation` for IDs 0, 2 and 4). It goes into FontNameID's own wording pass.
 - Also seen, FontNameID's: the Deleter prints `Non-Windows/English records: N`, which should match B5.
+
+## Notes on C as applied
+
+- Added `cs.fmt_plural(count, "file")` (`1 file`, `3 files`; pass a plural for irregular nouns) and used it for every
+  `file(s)` / `record(s)` in the shared messages, including three the audit didn't list: the `-dmr` removal lines
+  (`Would remove 2 Mac name records in total`), "Compound modifier(s) detected", and `No Mac name records found to remove`.
+- **C1:** the confirmation now reads `About to modify 3 files.` then `Proceed? (y/N/q)`.
+- **C6:** one line, `Found 4 Mac name records in 2 files`, with `Use -dmr to remove them before processing.` beneath it.
