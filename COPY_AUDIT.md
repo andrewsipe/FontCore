@@ -1,6 +1,6 @@
 # Wording audit: FontCore's shared messages
 
-2026-11-20, with the `cli-writing` skill. **Nothing has been edited.** This is a list of proposals. Pick by number
+2026-11-20, with the `cli-writing` skill. **Section A applied 2026-11-20 (FontCore 0.2.2).** B and C are still proposals. Pick by number
 ("all of A", "B2, B4", "skip C3"), or rewrite any line yourself and I'll use yours.
 
 Scope: the messages every replacer prints through `core_nameid_replacer_base.py` and `core_console_styles.py`,
@@ -16,11 +16,11 @@ the original stays unless you say otherwise.
 
 | # | Where | Now | Proposed | Why |
 |---|---|---|---|---|
-| A1 | Active flags list (`core_nameid_replacer_base.py:573`) | `-dry, --dry-run : Preview mode - no changes will be saved` | `-n, --dry-run : preview only; no changes are saved` | There is no `-dry` flag; it's `-n`. |
-| A2 | Active flags list (`:576`) | `-yes, --confirm : Auto-confirm all prompts` | `-y, --yes : skip the confirmation` | The flag is `-y/--yes`. The code also checks an option called `confirm`, which doesn't exist, so this line **never prints** even when `-y` is used. Fixing it needs a one-word code change. |
-| A3 | Active flags list (`:579`) | `-R, --recursive : Process directories recursively` | `-r, --recursive : include subfolders` | The flag is lowercase `-r`. |
-| A4 | Compound-modifier warning (`:466`) | `To fix: run Find-N-Replace with the RemoveModifierSpaces preset.` | `To fix: run fontnameid replace with the RemoveModifierSpaces preset.` | `Find-N-Replace` is no longer the command name. *(verify the preset name still exists)* |
-| A5 | Plain-text prompt (`core_console_styles.py:1056`, used only when Rich is missing) | prints the literal text `[input][bold](y/N): [/bold][/input]` | no wording change; the markup shouldn't be printed | Code fix. Rich is now a required dependency, so this path is rare. |
+| A1 ✓ | Active flags list (`core_nameid_replacer_base.py:573`) | `-dry, --dry-run : Preview mode - no changes will be saved` | `-n, --dry-run : preview only; no changes are saved` | There is no `-dry` flag; it's `-n`. |
+| A2 ✓ | Active flags list (`:576`) | `-yes, --confirm : Auto-confirm all prompts` | `-y, --yes : skip the confirmation` | The flag is `-y/--yes`. The code also checks an option called `confirm`, which doesn't exist, so this line **never prints** even when `-y` is used. Fixing it needs a one-word code change. |
+| A3 ✓ | Active flags list (`:579`) | `-R, --recursive : Process directories recursively` | `-r, --recursive : include subfolders` | The flag is lowercase `-r`. |
+| A4 ✓ | Compound-modifier warning (`:466`) | `To fix: run Find-N-Replace with the RemoveModifierSpaces preset.` | `To fix: run fontnameid replace with the RemoveModifierSpaces preset.` | `Find-N-Replace` is no longer the command name. *(verify the preset name still exists)* |
+| A5 ✓ | Plain-text prompt (`core_console_styles.py:1056`, used only when Rich is missing) | prints the literal text `[input][bold](y/N): [/bold][/input]` | no wording change; the markup shouldn't be printed | Code fix. Rich is now a required dependency, so this path is rare. |
 
 ## B. Jargon and terms
 
