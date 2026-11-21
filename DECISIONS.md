@@ -318,3 +318,27 @@ decided by three checks in this order: **name, flag, angle.**
 - **FontCore:** one shared angle measurement and the 2 degree floor (moved out of FontFixer), used by both tools.
 - **FontFixer:** ITALIC and `macStyle` italic follow label or angle; OBLIQUE no longer required. A FontFixer release.
 - **Order of tools:** FontFixer (angle and flags) -> fontnameid (names, ID2) -> FontFixer again to verify -> ebrium.
+
+## Reverse Italic and missing weights (2026-11-21)
+
+- **Reverse Italic:** `Black Reverse Italic` gives ID1 `Probe Black Reverse`. Reverse is a slope name in its own right and the
+  designer may intend it without Italic, so ID1 drops only the exact word `Italic`. ID4 and ID17 keep `Reverse Italic` whole. (Settled.)
+- **A missing Regular is accounted for when possible; a missing Italic is not.** `Regular` is a weight, so it keeps the weight
+  scheme continuous even when it is the only weight. `Italic` is never appended.
+
+### Proposed: where a missing Regular goes (no slope list)
+
+Decision tree, using signals the font already carries:
+
+1. The style already has a weight word: leave it.
+2. The style is empty: `Regular`.
+3. The font is **upright** (no Italic in the name, angle inside +-2 degrees): nothing needs protecting, so `Regular` goes last
+   (`Condensed Regular`, `Display Regular`).
+4. The font is **slanted** (name Italic, or angle outside +-2 degrees): house order is `{Width} {Weight} {Slope}`, so the slope is
+   the **last word** and `Regular` goes before it (`Regular Oblique`, `Condensed Regular Oblique`, `Regular Reverse Italic`). If the last
+   word is a known width (a bounded list), the name has no slope word and `Regular` goes last.
+5. Sanity check: if `usWeightClass` is far from 400 while the name has no weight word, warn (`Light? usWeightClass is 300`) instead
+   of staying silent. It is a hint only: the class is not always right.
+
+Other signals considered: the font's own earlier ID17/ID4 as a witness; and, with family context (later), the one member of a
+family with no weight word while its siblings have them is the Regular.
