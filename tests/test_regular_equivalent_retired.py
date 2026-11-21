@@ -12,10 +12,7 @@ import inspect
 import pytest
 
 import FontCore.core_name_policies as policies
-from FontCore.core_name_policies import (
-    build_id1,
-    normalize_style_and_slope_for_id1_id4 as normalize,
-)
+from FontCore.core_name_policies import build_id1, id1_style
 
 REMOVED = [
     "identify_family_regular_equivalent",
@@ -36,7 +33,7 @@ def test_regular_equivalent_machinery_is_gone(name):
 
 
 def test_no_regular_equivalent_parameters_are_left():
-    for fn in (normalize, build_id1, policies.build_id4):
+    for fn in (build_id1, policies.build_id4):
         params = set(inspect.signature(fn).parameters)
         assert not params & {"regular_equivalent", "regular_synonyms_mode", "drop_book", "drop_normal"}
 
@@ -44,24 +41,41 @@ def test_no_regular_equivalent_parameters_are_left():
 @pytest.mark.parametrize(
     "style, expected",
     [
-        ("Regular", (None, None)),
-        ("Regular Italic", (None, "Italic")),
-        ("Roman", ("Roman", None)),
-        ("Roman Italic", ("Roman", "Italic")),
-        ("Book", ("Book", None)),
-        ("Normal", ("Normal", None)),
-        ("Plain", ("Plain", None)),
-        ("Medium", ("Medium", None)),
-        ("Light", ("Light", None)),
-        ("Text", ("Text", None)),
-        ("Light Italic", ("Light", "Italic")),
-        ("Book Oblique", ("Book", "Oblique")),
+        ("Regular", None),
+        ("Italic", None),
+        ("Regular Italic", None),
+        ("Bold", None),
+        ("Bold Italic", None),
+        ("Roman", "Roman"),
+        ("Roman Italic", "Roman"),
+        ("Book", "Book"),
+        ("Normal", "Normal"),
+        ("Plain", "Plain"),
+        ("Medium", "Medium"),
+        ("Light", "Light"),
+        ("Text", "Text"),
+        ("Light Italic", "Light"),
+        ("Condensed Bold", "Condensed"),
+        ("Semibold", "Semibold"),
+        # every other word is an ordinary style word and stays: no slope vocabulary
+        ("Oblique", "Oblique"),
+        ("Cursive", "Cursive"),
+        ("Backslanted", "Backslanted"),
+        ("Light Oblique", "Light Oblique"),
+        ("Black Reverse Italic", "Black Reverse"),
+        (None, None),
+        ("", None),
     ],
 )
-def test_id1_style_drops_only_regular(style, expected):
-    assert normalize(style, None) == expected
+def test_id1_style_drops_only_regular_italic_and_bold(style, expected):
+    assert id1_style(style) == expected
 
 
 @pytest.mark.parametrize("word", ["Roman", "Book", "Normal", "Plain", "Medium", "Light"])
 def test_equivalents_stay_in_id1(word):
     assert build_id1("Probe", None, word, None) == f"Probe {word}"
+
+
+def test_slope_helpers_are_gone_from_the_names_path():
+    for name in ("normalize_style_and_slope_for_id1_id4", "_extract_slope_from_style", "_STYLE_SLOPE_EXTRACTORS"):
+        assert not hasattr(policies, name)

@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from FontCore.core_font_style_dictionaries import ensure_weight_word, has_weight_word
-from FontCore.core_name_policies import build_id4, build_id17, normalize_style_and_slope_for_id1_id4
+from FontCore.core_name_policies import build_id4, build_id17
 
 
 @pytest.mark.parametrize(
@@ -36,11 +36,12 @@ def test_has_weight_word(text, expected):
         ("Italic", "Regular Italic"),
         ("Wide", "Wide Regular"),
         ("Wide Italic", "Wide Regular Italic"),
-        ("Display Condensed Oblique", "Display Condensed Regular Oblique"),
+        ("Display Condensed Italic", "Display Condensed Regular Italic"),
         ("Reverse Italic", "Regular Reverse Italic"),
-        ("Condensed Reverse Slanted", "Condensed Regular Reverse Slanted"),
-        ("Backslanted", "Regular Backslanted"),
-        ("Cursive", "Regular Cursive"),
+        ("Condensed Reverse Italic", "Condensed Regular Reverse Italic"),
+        # no slope vocabulary: only the exact word Italic is placed; anything else is a plain style word
+        ("Oblique", "Oblique Regular"),
+        ("Cursive", "Cursive Regular"),
         ("Bold Italic", "Bold Italic"),
         ("Light", "Light"),
         ("Roman", "Roman"),
@@ -66,7 +67,6 @@ def test_ensure_weight_word(text, expected):
         (None, "Bold", "Italic", "Bold Italic"),
         (None, "Roman", None, "Roman"),
         (None, "Light", None, "Light"),
-        (None, "Wide Regular Backslanted", None, "Wide Regular Backslanted"),
     ],
 )
 def test_id17_always_carries_a_weight(modifier, style, slope, expected):
@@ -92,7 +92,3 @@ def test_id4_keeps_regular(style, slope, expected):
     assert build_id4("Probe", None, style, slope) == expected
 
 
-def test_normalize_can_keep_regular_for_id4():
-    assert normalize_style_and_slope_for_id1_id4("Regular Italic", None) == (None, "Italic")
-    assert normalize_style_and_slope_for_id1_id4("Regular Italic", None, keep_regular=True) == ("Regular", "Italic")
-    assert normalize_style_and_slope_for_id1_id4("Regular", None, keep_regular=True) == ("Regular", None)
