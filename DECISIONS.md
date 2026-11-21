@@ -326,19 +326,30 @@ decided by three checks in this order: **name, flag, angle.**
 - **A missing Regular is accounted for when possible; a missing Italic is not.** `Regular` is a weight, so it keeps the weight
   scheme continuous even when it is the only weight. `Italic` is never appended.
 
-### Proposed: where a missing Regular goes (no slope list)
+### Proposed (revised 2026-11-21): where a missing Regular goes
 
-Decision tree, using signals the font already carries:
+Evidence: the Bitcount Grid family names its fonts `Bitcount Grid Double Regular Circle Italic`, `... Regular Line Square Italic`,
+`... Regular Plus Italic`. The weight sits right after the family and width, **before** the bespoke modifiers (Circle, Line,
+Square, Plus) and the slope. A rule that puts Regular next to the slope would get all five wrong.
+
+Decision tree (no slope list, no slanted signal needed):
 
 1. The style already has a weight word: leave it.
 2. The style is empty: `Regular`.
-3. The font is **upright** (no Italic in the name, angle inside +-2 degrees): nothing needs protecting, so `Regular` goes last
-   (`Condensed Regular`, `Display Regular`).
-4. The font is **slanted** (name Italic, or angle outside +-2 degrees): house order is `{Width} {Weight} {Slope}`, so the slope is
-   the **last word** and `Regular` goes before it (`Regular Oblique`, `Condensed Regular Oblique`, `Regular Reverse Italic`). If the last
-   word is a known width (a bounded list), the name has no slope word and `Regular` goes last.
-5. Sanity check: if `usWeightClass` is far from 400 while the name has no weight word, warn (`Light? usWeightClass is 300`) instead
-   of staying silent. It is a hint only: the class is not always right.
+3. Otherwise insert `Regular` after any leading **width** words (a bounded list), or at the start: `Circle Italic` -> `Regular Circle Italic`,
+   `Condensed Oblique` -> `Condensed Regular Oblique`, `Reverse Italic` -> `Regular Reverse Italic`, `Condensed` -> `Condensed Regular`.
+4. With family context (the filename step), the weight position seen in the siblings wins over this default.
+5. When Regular is added with no family pattern to confirm it, warn and say how to override. A `usWeightClass` far from 400 is a
+   second reason to warn (a hint only).
 
-Other signals considered: the font's own earlier ID17/ID4 as a witness; and, with family context (later), the one member of a
-family with no weight word while its siblings have them is the Regular.
+Single-font runs are safe: nothing is ever removed or rewritten on the strength of a pattern (the old "regular equivalent" rule dropped
+Book and Light when a font was run alone). A pattern may only *place an addition*.
+
+### Overrides (so a special case is never stuck)
+
+Applies to the replacers that add a weight (4, 17, and `batch`):
+
+- `--weight-word WORD`: add WORD instead of `Regular`; `--weight-word none` adds nothing.
+- `--weight-position {after-width,start,end}`: where it goes (default `after-width`).
+- Every warning names the flag that changes it. `-str` (exact text) remains the last resort.
+- Standing choices can live in a preferences file later (same mechanism as the optical word list); a flag on the command line wins.
