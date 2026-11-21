@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Naming rules · FontCore</title>
+  <meta name="description" content="How the tools build family, style, full and typographic names." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">FontCore <span>docs</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="how-tools-use-it.html">How tools use it</a>
+        <a href="naming-rules.html" aria-current="page">Naming rules</a>
+        <a href="modules.html">Modules</a>
+        <a href="developing.html">Developing</a>
+      </nav>
+      <a class="github-link" href="https://github.com/andrewsipe/FontCore">GitHub</a>
+    </div>
+  </header>
+
+  <main>
+    <p class="meta">House conventions</p>
+    <h1>Naming rules</h1>
+    <p class="lede">
+      The tools read the style from the filename and build the name records from it. These are the owner's conventions,
+      not an industry standard; the reasons are in <a href="https://github.com/andrewsipe/FontCore/blob/main/DECISIONS.md"><code>DECISIONS.md</code></a>.
+    </p>
+
+    <h2>What each record holds</h2>
+    <table>
+      <thead><tr><th>Record</th><th>Holds</th></tr></thead>
+      <tbody>
+        <tr><td>Family (ID 1)</td><td>The family plus every style word except <code>Regular</code>, <code>Italic</code> and <code>Bold</code>. Variable fonts keep <code>Variable</code>.</td></tr>
+        <tr><td>Style (ID 2)</td><td>One of <code>Regular</code>, <code>Italic</code>, <code>Bold</code>, <code>Bold Italic</code>.</td></tr>
+        <tr><td>Full name (ID 4)</td><td>Family and style, and it keeps <code>Regular</code>.</td></tr>
+        <tr><td>Typographic style (ID 17)</td><td>The whole style. It always has a weight.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Examples</h2>
+    <table>
+      <thead><tr><th>Filename</th><th>ID 1</th><th>ID 2</th><th>ID 4</th><th>ID 17</th></tr></thead>
+      <tbody>
+        <tr><td><code>Probe-Regular</code></td><td>Probe</td><td>Regular</td><td>Probe Regular</td><td>Regular</td></tr>
+        <tr><td><code>Probe-Bold</code></td><td>Probe</td><td>Bold</td><td>Probe Bold</td><td>Bold</td></tr>
+        <tr><td><code>Probe-RegularItalic</code></td><td>Probe</td><td>Italic</td><td>Probe Regular Italic</td><td>Regular Italic</td></tr>
+        <tr><td><code>Probe-Semibold</code></td><td>Probe Semibold</td><td>Regular</td><td>Probe Semibold</td><td>Semibold</td></tr>
+        <tr><td><code>Probe-Condensed</code></td><td>Probe Condensed</td><td>Regular</td><td>Probe Condensed Regular</td><td>Condensed Regular</td></tr>
+        <tr><td><code>Probe-Variable</code></td><td>Probe Variable</td><td>Regular</td><td>Probe Variable</td><td>Regular</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Words and compounds</h2>
+    <ul>
+      <li>Weight compounds are one word: <code>Semibold</code>, <code>Extralight</code>. <code>Smallcaps</code> is the one exception to keeping capitals.</li>
+      <li>Width compounds are joined and keep their capitals: <code>SemiCondensed</code>, <code>XXCondensed</code>, <code>SemiMono</code>.</li>
+      <li>The style order is <code>Family {Optical}-{Width} {Weight} {Slope}</code>.</li>
+      <li>There is no list of slope words and no list of optical sizes. Position and the user's own list decide.</li>
+    </ul>
+
+    <h2>Regular and a missing weight</h2>
+    <p>
+      The tool adds <code>Regular</code> only when the style is empty, or holds only width words or only <code>Italic</code>.
+      Any other style with no known weight word keeps its text and prints a note, because the unknown word may itself be the weight.
+      A filename with no hyphen is skipped under <code>-fp</code>: there is no style to read.
+    </p>
+
+    <h2>Style (ID 2): the name wins</h2>
+    <ol class="steps">
+      <li><span class="term">Name</span>The word <code>Bold</code> makes Bold. The word <code>Italic</code> makes Italic.</li>
+      <li><span class="term">Flags</span>Only when the style says nothing at all, the font's Italic and Bold flags decide.</li>
+      <li><span class="term">Angle</span>Only when the style says nothing or names a slope (Oblique, Slanted, Backslant, Cursive), an italic angle of 2 degrees or more, forward or back, makes Italic.</li>
+    </ol>
+    <div class="callout">
+      <strong>A slanted font named <code>Regular</code> stays Regular.</strong> Italic is a linked alternative to a Regular.
+      A script with nothing to link to isn't an Italic, and the tool prints a note instead of guessing. The font's Italic and Bold flags follow ID 2.
+    </div>
+
+    <h2>Known splits are not fixed here</h2>
+    <p>Splits such as <code>S Sm</code> (ScreenSmart) or <code>3 D</code> are handled by the NameID find-and-replace step, not by the rules above.</p>
+  </main>
+
+  <footer class="site-footer">
+    <a href="https://github.com/andrewsipe/FontCore">andrewsipe/FontCore</a>
+    · static Pages site from the <code>docs/</code> folder on <code>main</code>
+  </footer>
+</body>
+</html>

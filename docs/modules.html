@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modules · FontCore</title>
+  <meta name="description" content="What each FontCore module does." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">FontCore <span>docs</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="how-tools-use-it.html">How tools use it</a>
+        <a href="naming-rules.html">Naming rules</a>
+        <a href="modules.html" aria-current="page">Modules</a>
+        <a href="developing.html">Developing</a>
+      </nav>
+      <a class="github-link" href="https://github.com/andrewsipe/FontCore">GitHub</a>
+    </div>
+  </header>
+
+  <main>
+    <p class="meta">Reference</p>
+    <h1>Modules</h1>
+    <p class="lede">Everything lives in <code>src/FontCore/</code> as <code>core_*.py</code>. A tool vendors only the modules it uses and the ones those import.</p>
+
+    <h2>Console and errors</h2>
+    <table>
+      <thead><tr><th>Module</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>core_console_styles</code></td><td>Status labels, tables, panels and progress bars; the shared before-and-after messages and prompts. Falls back to plain text without Rich.</td></tr>
+        <tr><td><code>core_console_config</code></td><td>The console theme, labels and settings.</td></tr>
+        <tr><td><code>core_cli_help</code></td><td>Building blocks for <code>--help</code> screens.</td></tr>
+        <tr><td><code>core_error_handling</code></td><td>Tracks errors across a batch and reports them.</td></tr>
+        <tr><td><code>core_logging_config</code></td><td>Logging setup and verbosity.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Finding and reading fonts</h2>
+    <table>
+      <thead><tr><th>Module</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>core_file_collector</code></td><td>Finds TTF, OTF, WOFF and WOFF2 files, with or without subfolders.</td></tr>
+        <tr><td><code>core_font_extension</code></td><td>Detects the real format from the file's first bytes and checks the extension.</td></tr>
+        <tr><td><code>core_font_metadata</code></td><td>Reads PostScript name, version, vendor ID and format.</td></tr>
+        <tr><td><code>core_font_utils</code></td><td>Validates PostScript names and cleans folder and file names.</td></tr>
+        <tr><td><code>core_font_sorter</code></td><td>Groups fonts into families and sorts by weight, width and style.</td></tr>
+        <tr><td><code>core_variable_font_detection</code></td><td>Finds variable fonts, their axes and instances.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Names</h2>
+    <table>
+      <thead><tr><th>Module</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>core_filename_parts_parser</code></td><td>Splits a filename into family and style.</td></tr>
+        <tr><td><code>core_variable_filename_parser</code></td><td>The same for variable fonts, including the older filename layouts.</td></tr>
+        <tr><td><code>core_font_style_dictionaries</code></td><td>Weight, width and modifier words; joins compounds; adds a missing <code>Regular</code>.</td></tr>
+        <tr><td><code>core_name_policies</code></td><td>Builds IDs 1, 2, 4, 16 and 17 and decides ID 2 (see <a href="naming-rules.html">naming rules</a>).</td></tr>
+        <tr><td><code>core_nameid_replacer_base</code></td><td>The shared run for every <code>fontnameid</code> command: plan, confirm, write, summarize.</td></tr>
+        <tr><td><code>core_namerecord_matcher</code> / <code>_writer</code></td><td>Find and write Windows English name records in binary fonts and TTX.</td></tr>
+        <tr><td><code>core_nameid_allocator</code></td><td>Allocates name IDs for variable-font axes and instances.</td></tr>
+        <tr><td><code>core_name_attribution</code></td><td>Resolves copyright and trademark text.</td></tr>
+        <tr><td><code>core_string_utils</code></td><td>Empty-string and joining helpers.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Tables and features</h2>
+    <table>
+      <thead><tr><th>Module</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>core_ttx_table_io</code></td><td>Reads and writes font tables as TTX.</td></tr>
+        <tr><td><code>core_stat_builder</code></td><td>Writes STAT axis values and named instances.</td></tr>
+        <tr><td><code>core_gpos_repair</code></td><td>GPOS repairs needed before the variable-font instancer.</td></tr>
+        <tr><td><code>core_ot_label_scanner</code> / <code>_reflow</code> / <code>_suggest</code></td><td>Find, move and suggest labels for stylistic sets and other features.</td></tr>
+        <tr><td><code>core_metadata_catalog</code></td><td>Looks up family metadata in a JSON catalog.</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <footer class="site-footer">
+    <a href="https://github.com/andrewsipe/FontCore">andrewsipe/FontCore</a>
+    · static Pages site from the <code>docs/</code> folder on <code>main</code>
+  </footer>
+</body>
+</html>

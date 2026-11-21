@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How tools use it · FontCore</title>
+  <meta name="description" content="Vendoring: how each tool carries its slice of FontCore and stays in sync." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="index.html">FontCore <span>docs</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="how-tools-use-it.html" aria-current="page">How tools use it</a>
+        <a href="naming-rules.html">Naming rules</a>
+        <a href="modules.html">Modules</a>
+        <a href="developing.html">Developing</a>
+      </nav>
+      <a class="github-link" href="https://github.com/andrewsipe/FontCore">GitHub</a>
+    </div>
+  </header>
+
+  <main>
+    <p class="meta">Sharing code</p>
+    <h1>How tools use it</h1>
+    <p class="lede">
+      Each tool copies the slice of FontCore it needs into its own <code>FontCore/</code> folder. A tool installs from GitHub on its own,
+      with no symlink, no sibling clone and no second install.
+    </p>
+
+    <h2>Choosing the slice</h2>
+    <p>A tool lists the modules it uses in its own <code>pyproject.toml</code>:</p>
+    <pre><code>[tool.fontcore-vendor]
+modules = ["core_console_styles", "core_file_collector"]</code></pre>
+    <p>The sync script copies those modules plus every FontCore module they import, and writes <code>FontCore/VENDOR.md</code>, which records the FontCore version and commit the copy came from.</p>
+
+    <h2>Checking and syncing</h2>
+<pre><code>python tools/vendor_fontcore.py check            # every sibling project with the table (read-only)
+python tools/vendor_fontcore.py check ../Ebrium  # one project
+python tools/vendor_fontcore.py sync ../Ebrium   # copy, stamp, remove stale modules</code></pre>
+    <table>
+      <thead><tr><th>Check says</th><th>It means</th><th>What to do</th></tr></thead>
+      <tbody>
+        <tr><td><code>BEHIND</code></td><td>The vendored file matches an older FontCore revision.</td><td>Run <code>sync</code>.</td></tr>
+        <tr><td><code>LOCAL CHANGES</code></td><td>The vendored file matches no FontCore revision.</td><td>Fold the edit back into FontCore, then <code>sync</code>.</td></tr>
+        <tr><td><code>MISSING</code> / <code>EXTRA</code></td><td>A needed module isn't there, or one no longer needed is.</td><td>Run <code>sync</code>.</td></tr>
+      </tbody>
+    </table>
+    <p><code>check</code> exits 1 when a project is out of sync.</p>
+
+    <div class="callout warn">
+      <strong>Never edit a vendored copy.</strong> Fix it in FontCore, tag a release, and sync the tools. An edit made in a tool is overwritten by the next sync.
+    </div>
+
+    <h2>How a change reaches the tools</h2>
+    <ol class="steps">
+      <li><span class="term">Change FontCore</span>Edit <code>src/FontCore/</code> and run the tests.</li>
+      <li><span class="term">Release</span>Bump <code>version</code> in <code>pyproject.toml</code> and <code>src/FontCore/__init__.py</code>, commit, and tag <code>vX.Y.Z</code>.</li>
+      <li><span class="term">Sync</span>Run <code>check</code>; it lists the tools whose modules changed. <code>sync</code> each one.</li>
+      <li><span class="term">Release the tools</span>Bump each tool's version, add a changelog entry, run its tests, commit and push.</li>
+    </ol>
+
+    <h2>Who uses it</h2>
+    <table>
+      <thead><tr><th>Tool</th><th>Command</th><th>Uses</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/andrewsipe/FontNameID">FontNameID</a></td><td><code>fontnameid</code></td><td>Naming rules, filename parsing, the shared replacer run, TTX and variable-font helpers</td></tr>
+        <tr><td><a href="https://github.com/andrewsipe/Filename_Tools">Filename_Tools</a></td><td><code>filenametools</code></td><td>Console output, file collection, style dictionaries</td></tr>
+        <tr><td><a href="https://github.com/andrewsipe/FileRenamer">FileRenamer</a></td><td><code>fontrenamer</code></td><td>File collection, filename and font metadata, sorting, naming rules</td></tr>
+        <tr><td><a href="https://github.com/andrewsipe/FontFixer">FontFixer</a></td><td><code>fontfixer</code></td><td>Console output, file collection, logging</td></tr>
+        <tr><td><a href="https://github.com/andrewsipe/Ebrium">Ebrium</a></td><td><code>ebrium</code></td><td>Console output, help screens, font sorting, logging</td></tr>
+        <tr><td><a href="https://github.com/andrewsipe/FontCatalyst">FontCatalyst</a></td><td><code>fontcatalyst</code></td><td>Console output, help screens, file collection, logging</td></tr>
+      </tbody>
+    </table>
+    <p>Each tool's <code>FontCore/VENDOR.md</code> says which FontCore version it has.</p>
+  </main>
+
+  <footer class="site-footer">
+    <a href="https://github.com/andrewsipe/FontCore">andrewsipe/FontCore</a>
+    · static Pages site from the <code>docs/</code> folder on <code>main</code>
+  </footer>
+</body>
+</html>
