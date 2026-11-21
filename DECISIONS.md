@@ -287,16 +287,34 @@ decided by three checks in this order: **name, flag, angle.**
   that zone is upright. FontFixer already measures the angle from the stem glyphs and uses the same 2 degree floor.
 - **No Italic is appended** unless it is in the filename. Variable fonts may need their own approach (area 5).
 
-### To settle before building
+### Settled (2026-11-20)
 
-1. **Which way can the angle override?** Up is clear: a style with no Italic word (Oblique, Cursive, Backslanted) and an angle
-   outside the zone is Italic. Down is the question: the name says Italic but the angle is inside the zone. FontFixer's rule is
-   "flags follow labels; measured slant must not mark a Roman italic". Proposal: the label wins, ID2 stays Italic, and the tool
-   warns. Alternative: the angle always wins.
-2. **Oblique and the ITALIC bit.** FontFixer expects `fsSelection` ITALIC clear and OBLIQUE set for an Oblique-named font. The ID2
-   replacer sets ITALIC for any Italic ID2 (including Oblique, now that the angle makes it Italic). FontFixer would then flag it.
-   As I read the OpenType spec, bit 0 means "italic or oblique", so it may be FontFixer that is stricter than the spec. Needs a
-   decision for both tools.
-3. **Order of tools.** The angle needs FontFixer first, but FontFixer's flags follow the names. Suggested run: FontFixer (angle) ->
-   fontnameid (names, ID2, RIBBI flags) -> FontFixer again (checks flags) -> ebrium. FontFixer's README currently says names first.
-4. **One measurement.** Move FontFixer's angle measurement and the 2 degree floor into FontCore so both tools use the same code.
+1. **Italic in either direction is Italic.** ID2 is Italic when the name says `Italic` **or** the measured angle is outside the zone
+   (forward or back slant). Names never change; ID2 and the flags are what get corrected, so machines see a slanted face
+   as Italic. A name that says Italic is never demoted by a near-zero angle (the tool warns instead); the angle only adds.
+2. **Italic is the bit machines read; Oblique is not required.** CSS and browsers register Italic. Slanted faces get the ITALIC
+   bit (`fsSelection` bit 0 and `macStyle` italic). The OBLIQUE bit is optional and no longer validated. Decisions about these
+   fields are judged by how a web page would read the font.
+3. **FontFixer measures the angle for every font, but its flags only follow labels.** Tested on synthetic fonts (all named
+   `Regular` unless noted):
+
+   | Font | angle before -> after FontFixer | fsSelection ITALIC | macStyle italic |
+   |---|---|---|---|
+   | upright | 0 -> 0 | 0 | 0 |
+   | slanted 12 degrees, named Regular | 0 -> -12.02 | **0** | **0** |
+   | back slant -12 degrees, named Regular | 0 -> +12.02 | **0** | **0** |
+   | slanted 12 degrees, named Oblique | 0 -> -12.02 | **0** (OBLIQUE set) | 1 |
+   | upright geometry, named Italic | 0 -> 0 | 1 | 1 |
+
+   So the angle is measured from the glyphs everywhere, as you expected. The gap is the flags: a slanted face named Regular
+   gets a correct `italicAngle` but no ITALIC bit, and an Oblique face gets `macStyle` italic but not `fsSelection` ITALIC, which
+   disagree with each other. FontFixer's style flags should follow label **or** angle: ITALIC set when the name says Italic or
+   `|angle| >= 2`.
+4. **Bold:** the word `Bold` (the same word ID1 drops); the bold flag confirms it, and decides only when the style has no weight
+   word. `usWeightClass` is not trusted.
+
+### Follow-ups this creates
+
+- **FontCore:** one shared angle measurement and the 2 degree floor (moved out of FontFixer), used by both tools.
+- **FontFixer:** ITALIC and `macStyle` italic follow label or angle; OBLIQUE no longer required. A FontFixer release.
+- **Order of tools:** FontFixer (angle and flags) -> fontnameid (names, ID2) -> FontFixer again to verify -> ebrium.
