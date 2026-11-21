@@ -272,3 +272,15 @@ that names change.
 4. **Filename tools**: `regular` adds `-Regular` / `-RegularItalic` and applies the Roman pairing rule; `reorder-optical` and
    `reorder-replace` take `-F "Display,Text,Sans"`, with an empty preference list.
 5. **Docs**: the house conventions, the RIBBI model, and the compound rules.
+
+## Q7 revisited: ID2 from font data, no slope vocabulary (proposed 2026-11-20, awaiting confirmation)
+
+The idea: stop managing slope names. ID2 is read from the font; the names carry whatever the filename says.
+
+- **ID1 drops only the exact words Regular, Italic and Bold.** Every other word (Oblique, Cursive, Backslanted, Reverse...) is an
+  ordinary style word and stays in ID1. ID1 + ID2 stay unique without any slope list.
+- **ID2 comes from the font**, not from names: italic from the italic angle, bold from the weight class. It is always one of
+  Regular, Italic, Bold, Bold Italic.
+- **No Italic injection**: names follow the filename (or the flags you pass); the code no longer decides whether a style "already
+  has a slope".
+- Slope lists remain only where you supply them at the time of use (the filename tools' `-F`), and in variable-font pairing (area 5).
