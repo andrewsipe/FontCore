@@ -25,14 +25,14 @@ python tools/vendor_fontcore.py sync ../Ebrium   # copy, stamp, remove stale mod
 
 Workflow for a change: edit `src/FontCore/`, run the tests, bump `version` in `pyproject.toml` and `src/FontCore/__init__.py`, commit, tag `vX.Y.Z`, then `sync` the consumers whose modules changed (`check` shows which) and release them.
 
-### Consumers (as of 2026-11-21, FontCore 0.3.0)
+### Consumers (as of 2026-11-21, FontCore 0.3.1)
 
 | Tool | Version | FontCore it carries | Modules declared → vendored |
 |---|---|---|---|
-| [FontFixer](https://github.com/andrewsipe/FontFixer) | 1.3.5 | 0.3.0 | 4 → 4 |
-| [Ebrium](https://github.com/andrewsipe/Ebrium) | 4.0.2 | 0.3.0 | 6 → 6 |
-| [FontCatalyst](https://github.com/andrewsipe/FontCatalyst) | 1.3.7 | 0.3.0 | 5 → 5 |
-| [FontNameID](https://github.com/andrewsipe/FontNameID) (`fontnameid`) | 0.3.0 | 0.3.0 | 12 → 16 |
+| [FontFixer](https://github.com/andrewsipe/FontFixer) | 1.3.6 | 0.3.1 | 4 → 4 |
+| [Ebrium](https://github.com/andrewsipe/Ebrium) | 4.0.3 | 0.3.1 | 6 → 6 |
+| [FontCatalyst](https://github.com/andrewsipe/FontCatalyst) | 1.3.8 | 0.3.1 | 5 → 5 |
+| [FontNameID](https://github.com/andrewsipe/FontNameID) (`fontnameid`) | 0.3.1 | 0.3.1 | 12 → 16 |
 | [FileRenamer](https://github.com/andrewsipe/FileRenamer) (`fontrenamer`) | 0.2.0 | 0.2.0 (behind) | 9 → 14 |
 | [Filename_Tools](https://github.com/andrewsipe/Filename_Tools) (`filenametools`) | 0.2.1 | 0.2.1 (behind) | 3 → 5 |
 | [FontExtractor2](https://github.com/andrewsipe/FontExtractor2) | 0.2.2 | 0.2.1 (behind) | 8 → 14 |
