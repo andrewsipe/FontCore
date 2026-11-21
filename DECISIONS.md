@@ -273,14 +273,30 @@ that names change.
    `reorder-replace` take `-F "Display,Text,Sans"`, with an empty preference list.
 5. **Docs**: the house conventions, the RIBBI model, and the compound rules.
 
-## Q7 revisited: ID2 from font data, no slope vocabulary (proposed 2026-11-20, awaiting confirmation)
+## Q7 revisited: ID2 from the font, no slope vocabulary (2026-11-20)
 
-The idea: stop managing slope names. ID2 is read from the font; the names carry whatever the filename says.
+Names (ID1, ID4, ID17) come from the filename and carry no slope vocabulary. ID2 is one of Regular, Italic, Bold, Bold Italic,
+decided by three checks in this order: **name, flag, angle.**
 
-- **ID1 drops only the exact words Regular, Italic and Bold.** Every other word (Oblique, Cursive, Backslanted, Reverse...) is an
-  ordinary style word and stays in ID1. ID1 + ID2 stay unique without any slope list.
-- **ID2 comes from the font**, not from names: italic from the italic angle, bold from the weight class. It is always one of
-  Regular, Italic, Bold, Bold Italic.
-- **No Italic injection**: names follow the filename (or the flags you pass); the code no longer decides whether a style "already
-  has a slope".
-- Slope lists remain only where you supply them at the time of use (the filename tools' `-F`), and in variable-font pairing (area 5).
+- **ID1 drops only the exact words Regular, Italic and Bold.** Everything else (Oblique, Cursive, Backslanted, Reverse...) is an
+  ordinary style word and stays. ID1 + ID2 stay unique without a slope list.
+- **Bold:** the word `Bold` in the style (the same word ID1 drops). `usWeightClass` is not trusted (it is not always 700). The
+  bold flag confirms it, and decides only when the style has no weight word at all.
+- **Italic:** the word `Italic` in the style, then the italic flag, then the **italic angle**. The angle is the most accurate
+  check *when FontFixer has run first*: a measured angle with `|angle| >= 2` degrees is slanted (forward or back), anything inside
+  that zone is upright. FontFixer already measures the angle from the stem glyphs and uses the same 2 degree floor.
+- **No Italic is appended** unless it is in the filename. Variable fonts may need their own approach (area 5).
+
+### To settle before building
+
+1. **Which way can the angle override?** Up is clear: a style with no Italic word (Oblique, Cursive, Backslanted) and an angle
+   outside the zone is Italic. Down is the question: the name says Italic but the angle is inside the zone. FontFixer's rule is
+   "flags follow labels; measured slant must not mark a Roman italic". Proposal: the label wins, ID2 stays Italic, and the tool
+   warns. Alternative: the angle always wins.
+2. **Oblique and the ITALIC bit.** FontFixer expects `fsSelection` ITALIC clear and OBLIQUE set for an Oblique-named font. The ID2
+   replacer sets ITALIC for any Italic ID2 (including Oblique, now that the angle makes it Italic). FontFixer would then flag it.
+   As I read the OpenType spec, bit 0 means "italic or oblique", so it may be FontFixer that is stricter than the spec. Needs a
+   decision for both tools.
+3. **Order of tools.** The angle needs FontFixer first, but FontFixer's flags follow the names. Suggested run: FontFixer (angle) ->
+   fontnameid (names, ID2, RIBBI flags) -> FontFixer again (checks flags) -> ebrium. FontFixer's README currently says names first.
+4. **One measurement.** Move FontFixer's angle measurement and the 2 degree floor into FontCore so both tools use the same code.
