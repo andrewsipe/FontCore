@@ -17,7 +17,6 @@ READ_ONLY = [
     ("src/FontCore/core_font_metadata.py", "get_vendor_id"),
     ("src/FontCore/core_font_sorter.py", "_extract_font_metadata"),
     ("src/FontCore/core_metadata_catalog.py", "_read_family_name_from_font"),
-    ("src/FontCore/core_name_policies.py", "_get_usweightclass_from_font"),
     ("src/FontCore/core_ot_label_scanner.py", "analyze_ot_features_from_path"),
 ]
 
