@@ -32,22 +32,29 @@ def test_has_weight_word(text, expected):
 @pytest.mark.parametrize(
     "text, expected",
     [
+        # injected: the style is empty, or only width and Italic words
         ("", "Regular"),
         ("Italic", "Regular Italic"),
         ("Wide", "Wide Regular"),
+        ("Narrow", "Narrow Regular"),
         ("Wide Italic", "Wide Regular Italic"),
-        ("Display Condensed Italic", "Display Condensed Regular Italic"),
-        ("Reverse Italic", "Regular Reverse Italic"),
-        ("Condensed Reverse Italic", "Condensed Regular Reverse Italic"),
-        # no slope vocabulary: only the exact word Italic is placed; anything else is a plain style word
-        ("Oblique", "Oblique Regular"),
-        ("Cursive", "Cursive Regular"),
+        ("Condensed Italic", "Condensed Regular Italic"),
+        ("SemiCondensed Italic", "SemiCondensed Regular Italic"),
+        # not injected: an unknown word may already be the weight (Air, Fine, Hairline-like names...)
+        ("Air", "Air"),
+        ("Fine", "Fine"),
+        ("Oblique", "Oblique"),
+        ("Cursive", "Cursive"),
+        ("Reverse Italic", "Reverse Italic"),
+        ("Display Condensed Italic", "Display Condensed Italic"),
+        ("Display Text", "Display Text"),
+        ("Circle Italic", "Circle Italic"),
+        # already has a weight word
         ("Bold Italic", "Bold Italic"),
         ("Light", "Light"),
         ("Roman", "Roman"),
         ("Regular Italic", "Regular Italic"),
         ("Text", "Text"),
-        ("Display Text", "Display Text Regular"),
     ],
 )
 def test_ensure_weight_word(text, expected):
@@ -92,3 +99,24 @@ def test_id4_keeps_regular(style, slope, expected):
     assert build_id4("Probe", None, style, slope) == expected
 
 
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("Air", ["Air"]),
+        ("Air Italic", ["Air"]),
+        ("Line Circle Italic", ["Line", "Circle"]),
+        ("Display Text", ["Display", "Text"]),
+        ("Italic", []),
+        ("Condensed Italic", []),
+        ("", []),
+        ("Bold Italic", []),
+        ("Air Bold", []),
+        ("Text", []),
+    ],
+)
+def test_unknown_weight_candidates(text, expected):
+    from FontCore.core_font_style_dictionaries import unknown_weight_candidates
+
+    assert unknown_weight_candidates(text) == expected
