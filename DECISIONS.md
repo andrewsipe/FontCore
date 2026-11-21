@@ -178,19 +178,32 @@ Each item gets a test first. Items are ordered by how much they fix.
 6. **Regular equivalent** (Q5): redesign, see follow-ups.
 7. **Docs**: the RIBBI model, the house order, the compound rules, written as the author's conventions.
 
-## Follow-up questions raised by the answers
+## Follow-up answers (2026-11-20)
 
-**F1. `SmallCaps`.** The dictionary spells it `Smallcaps` (and `ItalicSmallCaps → SmallcapsItalic`). Your Q4 rule says
-non-weight compounds keep their capitals, which would give `SmallCaps`. Which do you want?
+| # | Answer | What it means |
+|---|---|---|
+| F1 | **`Smallcaps`** (no strong preference; reads clearer than `SmallCaps`). | The dictionary keeps `Smallcaps` and `ItalicSmallCaps → SmallcapsItalic`. The Q4 "keep capitals" rule has this one exception, and the docs say so. |
+| F2 | **A word list supplied at the time of use** (`-F "Display,Text,Sans"`), moving those words before or after the family name depending on the options. A saved preference list is an advanced extra: an empty list that ships with the tool and that you can fill in. | No built-in optical words. See "F2 finding" below. |
+| F3 | The convention comes from **FontExplorerX**, which lists a font with no weight word first in its family and uses it as the default preview weight. The tools were built around that. Newer apps and variable fonts are making it matter less. | It is a listing and preview convention, not a naming standard. See "F3 reading" below. |
 
-**F2. Optical sizes without a list.** `filenametools reorder-optical` works from a list of 17 words today. With position as the rule
-(the term between the family and the hyphen), do you want (a) the tool to take the term by position and move it, (b) a list
-you can extend in a file, or (c) retire the tool?
+**F2 finding.** `filenametools reorder-replace` already works this way: `--prehyphen TERM` moves a term before the hyphen and
+`--posthyphen TERM` moves it after, repeatable and case-sensitive. It has no comma list and no saved list.
+`reorder-optical` still carries its own 17 built-in words (plus `--add-optical`). Proposed shape:
 
-**F3. The regular-equivalent convention.** When a family has no Regular, the tools pick the nearest of Plain, Normal, Book, Light,
-Medium, Text and drop its word from ID1/ID4. Today that is name-based and it misfires inside compounds (`ExtraLight` loses
-`Light`). A steadier signal is the font's own weight class: the font nearest 400 is the family's regular. Do you want the
-redesign to use (a) weight class first, with the name list only as a tie-break, (b) the name list as now, fixed to ignore
-compound pieces, or (c) drop the convention and name every non-Regular/Roman style explicitly?
+- Both commands take the words the same way: repeatable `--prehyphen` / `--posthyphen`, plus a comma list (`-F "Display,Text,Sans"`).
+- `reorder-optical` ships with **no** built-in words. It reads an optional preference list (an empty file you can fill in, for
+  example `optical-terms.txt` in the tool's config folder) and anything you pass with `-F`. Same engine as `reorder-replace`, so
+  there is one implementation, not two.
+
+**F3 reading (to confirm).** Keep the convention, but make it explicit and stable instead of name-guessing:
+
+- Only when a family has no `Regular` or `Roman`, and for **exactly one font**: the one whose weight class is nearest 400. Its
+  weight word is left out of ID1/ID4, so apps like FontExplorerX list it first.
+- The name list (Plain, Normal, Book, Light, Medium, Text) breaks ties; it is no longer matched against pieces of a compound, so
+  `ExtraLight` can't lose `Light`.
+- A switch to turn it off for apps that don't need it, and a note in the docs saying why it exists. Default stays on until you
+  say otherwise.
+
+## Still open
 
 **F4. Variable fonts.** You called the variable-font policies "not great". That is its own area (5) in the walkthrough.
