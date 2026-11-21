@@ -316,7 +316,7 @@ decided by three checks in this order: **name, flag, angle.**
 ### Follow-ups this creates
 
 - **FontCore:** one shared angle measurement and the 2 degree floor (moved out of FontFixer), used by both tools.
-- **FontFixer:** ITALIC and `macStyle` italic follow label or angle; OBLIQUE no longer required. A FontFixer release.
+- **FontFixer:** ITALIC and `macStyle` italic follow the **label** (superseded 2026-11-21: the angle no longer sets Italic for an upright-named font, see below). A FontFixer release.
 - **Order of tools:** FontFixer (angle and flags) -> fontnameid (names, ID2) -> FontFixer again to verify -> ebrium.
 
 ## Reverse Italic and missing weights (2026-11-21)
@@ -353,3 +353,19 @@ Applies to the replacers that add a weight (4, 17, and `batch`):
 - `--weight-position {after-width,start,end}`: where it goes (default `after-width`).
 - Every warning names the flag that changes it. `-str` (exact text) remains the last resort.
 - Standing choices can live in a preferences file later (same mechanism as the optical word list); a flag on the command line wins.
+
+## Name wins over the angle (2026-11-21)
+
+Tested on 1,539 FontVault fonts: 223 had a slant of 2 degrees or more with a plain upright name (`RoleSerifBanner-Regular` at 6.2).
+Comparing the angle across each family showed no reliable pattern (only 5 of 59 families had slope-named files that were clearly
+steeper), and most were scripts or slanted-by-design families.
+
+- **Italic is a linked alternative to a Regular.** A slanted font with nothing to link to is not an Italic; marking it Italic is an
+  assumption, so a script keeps Regular. Where an old tool had set Italic from the angle alone, the Italic setting is treated as wrong
+  and goes back to Regular (59 of 1,539 in the vault sample).
+- **ID2 rule now:** the word `Italic` in the style makes Italic. The angle (>= 2 degrees) adds Italic only when the style is empty
+  or names a slope (Oblique, Slanted, Backslant, Cursive, Inclined). A style of weight, width, `Regular` or a bespoke word stays upright
+  and the tool prints a note. The flags decide only when the style says nothing.
+- **Flags** (fsSelection, macStyle) follow ID2, so they stay in step with it.
+- **SemiMono:** modifier + Mono joins like the width compounds, in the family and the style (`Semi Mono` -> `SemiMono`).
+- Known splits such as `S Sm` (ScreenSmart) and `3 D` are caught by the NameID find-and-replace script, not by the naming rules.
