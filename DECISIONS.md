@@ -198,26 +198,36 @@ word is listed first and used as the default preview). It is not honest naming, 
 | File | ID1 today → new | ID4 today → new |
 |---|---|---|
 | Probe-Regular | Probe → Probe | Probe → **Probe Regular** |
-| Probe-RegularItalic | Probe → Probe | Probe Italic → **Probe Regular Italic** *(confirm, C1)* |
+| Probe-RegularItalic | Probe → Probe | Probe Italic → **Probe Regular Italic** |
 | Probe-Bold / Probe-BoldItalic | Probe → Probe | Probe Bold / Probe Bold Italic → unchanged |
 | Probe-Light (family has a Regular) | Probe Light → Probe Light | Probe Light → Probe Light |
 | Probe-Light (family has **no** Regular) | Probe → **Probe Light** | Probe → **Probe Light** |
 | Probe-Book | Probe Book → Probe Book | Probe Book → Probe Book |
-| Probe-Roman | Probe → **Probe Roman** *(confirm, C2)* | Probe → **Probe Roman** |
-| Variable file | Probe → **Probe Variable** *(shape: area 5)* | unchanged |
+| Probe-Roman (standalone) | Probe → **Probe Roman** | Probe → **Probe Roman** |
+| Probe-Roman + Probe-Italic (a pair) | rename to Probe-Regular / Probe-RegularItalic first | then as the Regular rows |
+| Variable file (upright or italic) | Probe → **Probe Variable** | unchanged |
 
 **What a re-run does to a collection already processed.** IDs 1 and 4 change for: every Regular font (ID4 gains `Regular`),
 families that relied on the nearest-neighbor rule (the "regular" font gets its weight word back), Roman files, and variable
 fonts (ID1 gains `Variable`). ID2, ID3, ID6 and ID17 don't change. `fontrenamer -N full` (which uses ID4) will start producing
 `ProbeRegular` instead of `Probe` until you pick another stem, and `-N legacy` (ID1+ID2) is unaffected.
 
-### Questions this opens
+### Answers
 
-**C1. ID4 for the italic of a regular:** `Probe Regular Italic` (matches ID17 and the `-RegularItalic` filename) or `Probe Italic`?
-**C2. `Roman`:** treated like Book and Normal, so it stays in ID1 and ID4 (`Probe Roman`)? Today it is dropped from both.
-**C3. `--regular-synonyms`:** remove the flag, or keep it accepted and ignored for a release with a note ("no longer used")?
-**C4. `Variable` in ID1:** `Probe Variable` for the upright and for the italic variable file. The rest of the variable policy
-is area 5, so this is only the ID1 piece.
+| # | Answer |
+|---|---|
+| C1 | **Yes: ID4 is `Probe Regular Italic`** (Regular goes back in). This departs from the original "Family + Style" idea, where ID2 is just `Italic`, but it matches ID17 and the `-RegularItalic` filename. |
+| C2 | **`Roman` is a style (upright), not a weight.** If the font is standalone, or the family has no Italic files, `Roman` stays (`Probe Roman`). If it is half of a pair with an Italic, `Roman` becomes `Regular` and the italic is `Regular Italic` (never `Roman Italic`). A `Roman` inside a family name (a very upright or serif style) is part of the name and untouched. |
+| C3 | **Purge `--regular-synonyms`** and the machinery behind it. Anyone else using the scripts will see bigger changes than a synonym difference, so no deprecation period. |
+| C4 | **`Variable` in ID1 is `Probe Variable`** for the upright and the italic variable file. The rest of the variable policy is area 5. |
+
+### Where the Roman pairing rule lives (my recommendation)
+
+The rule needs family context ("does this family have an Italic?"). Put it in **one place, the filename step**: `filenametools regular`
+turns `Probe-Roman` into `Probe-Regular` (and `Probe-Italic` into `Probe-RegularItalic`) when the family has both, the same
+way it already adds a missing `Regular`. The name builders then treat `Roman` as an ordinary style word. That matches how you
+already work (filenames carry the weight, and the names follow the filenames) and keeps the builders free of family lookups.
+The cost: names are only right once the filenames are.
 
 ## Follow-up answers (2026-11-20)
 
@@ -248,3 +258,17 @@ is area 5, so this is only the ID1 piece.
 ## Still open
 
 **F4. Variable fonts.** You called the variable-font policies "not great". That is its own area (5) in the walkthrough.
+
+## Build order
+
+Each stage: tests first (showing the current behavior fail), then the change, then the old-versus-new comparison so only
+the intended names move. FontCore and FontNameID get a minor version bump (0.3.0) and a changelog entry that says plainly
+that names change.
+
+1. **Weight compounds as one token** (Q4) and `Smallcaps`: fixes `Probe Semi`, `Probe Extra`, and the `Light` lost from `ExtraLight`.
+2. **Retire the regular-equivalent machinery** (Q5 and F3 revised, C3). ID1 keeps equivalents and `Variable`; ID4 gets `Regular` and
+   `Regular Italic`; ID17 always carries a weight. Removes `--regular-synonyms`.
+3. **One vocabulary** (Q1, Q3): derived regexes, shared lists, `Cursive` everywhere; no optical list (Q2); `Text` by context (Q6).
+4. **Filename tools**: `regular` adds `-Regular` / `-RegularItalic` and applies the Roman pairing rule; `reorder-optical` and
+   `reorder-replace` take `-F "Display,Text,Sans"`, with an empty preference list.
+5. **Docs**: the house conventions, the RIBBI model, and the compound rules.
