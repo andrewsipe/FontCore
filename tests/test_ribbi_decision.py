@@ -55,8 +55,11 @@ def test_usweightclass_is_not_used():
         ("Backslanted", 10.0, "Italic"),
         ("Cursive", -9.0, "Italic"),
         ("Bold Oblique", -10.0, "Bold Italic"),
-        ("Regular", -2.0, "Italic"),
-        ("Regular", 2.0, "Italic"),
+        ("Regular", -2.0, "Regular"),  # name wins: a slanted upright-named design stays Regular
+        ("Regular", 2.0, "Regular"),
+        ("Bold", 9.0, "Bold"),
+        ("Light Condensed", 9.0, "Regular"),
+        ("", 9.0, "Italic"),  # nothing in the name: the angle decides
         ("Regular", 1.9, "Regular"),
         ("Regular", -1.9, "Regular"),
         ("Regular", 0.0, "Regular"),
