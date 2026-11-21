@@ -129,7 +129,7 @@ add consistency where there is little. The docsite should say so.
 | Q2 | **No closed list of optical-size words.** There are too many possible names to maintain. Optical size is recognized by position in the name (`Family {Optical Size} - {Width} {Weight} {Slope}`), not by vocabulary. |
 | Q3 | **`Cursive` is a slope** after the hyphen, in every tool. `Kursiv` stays; other non-English terms are added as they occur. |
 | Q4 | **Weight compounds are one word**: `SemiBold → Semibold`, `ExtraLight → Extralight`. **Width and other compounds are joined with no space and keep their capitals**: `Semi Condensed → SemiCondensed`. Example: `Ultra Condensed SemiBold → UltraCondensed Semibold`. |
-| Q5 | **ID1/ID4 drop only `Regular` and `Roman`.** The family-relative "regular equivalent" (Plain, Normal, Book, Light, Medium, Text when there is no Regular) is a long-standing convention that is hard to maintain; to be reconsidered (see follow-ups). |
+| Q5 | *(superseded, see Revised decisions)* **ID1/ID4 drop only `Regular` and `Roman`.** The family-relative "regular equivalent" (Plain, Normal, Book, Light, Medium, Text when there is no Regular) is a long-standing convention that is hard to maintain; to be reconsidered (see follow-ups). |
 | Q6 | **`Text` is context-sensitive**: an optical size when it appears with a weight word (or beside an `opsz` axis plus a weight axis); a weight name only when it is the only style word. The unused STAT "elidable" lists go away. |
 | Q7 | **The RIBBI model**: ID2 is only Regular, Italic, Bold or Bold Italic. Bold and Bold Italic are the stand-alone pair, used only for the family's bold weight. ID1 may be more explicit; ID4 is the full name. Every other weight is named in ID1, and ID2 says only whether it is the Regular or the Italic of that pair. Non-Italic slopes (Oblique, Cursive…) stay in ID1 as naming. |
 | Q8 | **ID17 keeps `Regular`**: a regular italic is `Regular Italic`, never plain `Italic`, so it can't be mistaken for another style (for example in a variable font). |
@@ -178,6 +178,47 @@ Each item gets a test first. Items are ordered by how much they fix.
 6. **Regular equivalent** (Q5): redesign, see follow-ups.
 7. **Docs**: the RIBBI model, the house order, the compound rules, written as the author's conventions.
 
+## Revised decisions (2026-11-20, after F3): the "regular equivalent" convention is retired
+
+This supersedes Q5 and the F3 reading. The author's reasons: the convention was built for FontExplorerX (a font with no weight
+word is listed first and used as the default preview). It is not honest naming, and it matters less every year.
+
+1. **Weight names always appear in filenames.** A single-weight file with no hyphen gets `-Regular`; `Font-Italic` gets the
+   weight too (`Font-RegularItalic`). The tools keep doing this.
+2. **ID1 drops only `Regular`, `Italic`, `Bold` and `Bold Italic`** (the RIBBI words). Regular equivalents (Book, Normal, Plain,
+   Medium, Light, Text…) **stay in ID1, whether or not a Regular exists in the family.**
+3. **ID4 gets `Regular` and its equivalents back.** The aggressive removal of `Regular` from ID4 ends.
+4. **ID17 is unchanged** (it always kept `Regular`).
+5. **`Variable` stays in ID1.** It is currently stripped.
+6. **The family-relative "regular equivalent" detection goes away**: no nearest-neighbor pick, no `--regular-synonyms` modes
+   (`regular_only`, `conservative`, `loose`).
+
+### What changes (spec, not yet built) for family "Probe"
+
+| File | ID1 today → new | ID4 today → new |
+|---|---|---|
+| Probe-Regular | Probe → Probe | Probe → **Probe Regular** |
+| Probe-RegularItalic | Probe → Probe | Probe Italic → **Probe Regular Italic** *(confirm, C1)* |
+| Probe-Bold / Probe-BoldItalic | Probe → Probe | Probe Bold / Probe Bold Italic → unchanged |
+| Probe-Light (family has a Regular) | Probe Light → Probe Light | Probe Light → Probe Light |
+| Probe-Light (family has **no** Regular) | Probe → **Probe Light** | Probe → **Probe Light** |
+| Probe-Book | Probe Book → Probe Book | Probe Book → Probe Book |
+| Probe-Roman | Probe → **Probe Roman** *(confirm, C2)* | Probe → **Probe Roman** |
+| Variable file | Probe → **Probe Variable** *(shape: area 5)* | unchanged |
+
+**What a re-run does to a collection already processed.** IDs 1 and 4 change for: every Regular font (ID4 gains `Regular`),
+families that relied on the nearest-neighbor rule (the "regular" font gets its weight word back), Roman files, and variable
+fonts (ID1 gains `Variable`). ID2, ID3, ID6 and ID17 don't change. `fontrenamer -N full` (which uses ID4) will start producing
+`ProbeRegular` instead of `Probe` until you pick another stem, and `-N legacy` (ID1+ID2) is unaffected.
+
+### Questions this opens
+
+**C1. ID4 for the italic of a regular:** `Probe Regular Italic` (matches ID17 and the `-RegularItalic` filename) or `Probe Italic`?
+**C2. `Roman`:** treated like Book and Normal, so it stays in ID1 and ID4 (`Probe Roman`)? Today it is dropped from both.
+**C3. `--regular-synonyms`:** remove the flag, or keep it accepted and ignored for a release with a note ("no longer used")?
+**C4. `Variable` in ID1:** `Probe Variable` for the upright and for the italic variable file. The rest of the variable policy
+is area 5, so this is only the ID1 piece.
+
 ## Follow-up answers (2026-11-20)
 
 | # | Answer | What it means |
@@ -195,7 +236,7 @@ Each item gets a test first. Items are ordered by how much they fix.
   example `optical-terms.txt` in the tool's config folder) and anything you pass with `-F`. Same engine as `reorder-replace`, so
   there is one implementation, not two.
 
-**F3 reading (to confirm).** Keep the convention, but make it explicit and stable instead of name-guessing:
+**F3 reading (superseded: the convention is retired, see above).** Keep the convention, but make it explicit and stable instead of name-guessing:
 
 - Only when a family has no `Regular` or `Roman`, and for **exactly one font**: the one whose weight class is nearest 400. Its
   weight word is left out of ID1/ID4, so apps like FontExplorerX list it first.
