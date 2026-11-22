@@ -9,6 +9,7 @@ from fontTools.ttLib.tables import _g_l_y_f as glyf_module
 
 from FontCore.core_name_attribution import (
     combine_rights_holders,
+    describe_holder_source,
     construct_copyright,
     construct_trademark,
     extract_year_from_copyright,
@@ -56,9 +57,26 @@ class TestRightsHolderResolution:
         _set_win_name(font, 8, "Acme Foundry LLC")
         assert resolve_rights_holder_binary(font, "Custom Holder") == "Custom Holder"
 
-    def test_placeholder_override_is_not_explicit(self):
-        assert not is_explicit_rights_holder_override("designer")
+    def test_any_given_name_is_explicit(self):
+        # no placeholder word is reserved any more: "designer" typed by the user is a name like any other
+        assert is_explicit_rights_holder_override("designer")
         assert is_explicit_rights_holder_override("Real Co")
+        assert not is_explicit_rights_holder_override("")
+        assert not is_explicit_rights_holder_override("   ")
+        assert not is_explicit_rights_holder_override(None)
+
+    def test_no_name_at_all_is_none_not_a_placeholder(self):
+        font = _minimal_font()
+        assert resolve_rights_holder_binary(font) is None
+        assert resolve_rights_holder_binary(font, "") is None
+
+    def test_a_blank_name_record_counts_as_missing(self):
+        font = _minimal_font()
+        _set_win_name(font, 8, "   ")
+        assert resolve_rights_holder_binary(font) is None
+
+    def test_the_description_says_such_fonts_are_skipped(self):
+        assert "skipped" in describe_holder_source(None)
 
 
 class TestFamilyResolution:
