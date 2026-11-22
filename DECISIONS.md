@@ -369,3 +369,15 @@ steeper), and most were scripts or slanted-by-design families.
 - **Flags** (fsSelection, macStyle) follow ID2, so they stay in step with it.
 - **SemiMono:** modifier + Mono joins like the width compounds, in the family and the style (`Semi Mono` -> `SemiMono`).
 - Known splits such as `S Sm` (ScreenSmart) and `3 D` are caught by the NameID find-and-replace script, not by the naming rules.
+
+## Weight overrides (2026-11-21)
+
+When a filename style has no known weight word, the tool does not guess; it prints a note. `--weight-word WORD` answers the
+question for the whole run, and `--weight-position last|first` says where the word goes.
+
+- `--weight-word Light` adds Light to every style that has no weight word. A style that already names a weight is never touched.
+- `--weight-word none` adds nothing and silences the note (the unknown word is the weight, like `Air`).
+- Position `last` (default) puts the word at the end, before a trailing Italic: `Carved Italic` -> `Carved Light Italic`.
+  Position `first` puts it at the front, for bespoke words that follow the weight: `Carved` -> `Light Carved`.
+- The choice applies to IDs 1, 2, 4, 16 and 17 together, because it is made where the filename style is read, so the names cannot
+  disagree. `--weight-word Regular` follows the usual Regular rules (ID1 drops it, ID4 and ID17 keep it); `--weight-word Bold` makes ID2 Bold.
