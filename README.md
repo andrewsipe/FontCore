@@ -34,7 +34,7 @@ Workflow for a change: edit `src/FontCore/`, run the tests, bump `version` in `p
 | [Filename_Tools](https://github.com/andrewsipe/Filename_Tools) (`filenametools`) | 0.3.0 | 0.4.0 | 3 → 5 |
 | [Ebrium](https://github.com/andrewsipe/Ebrium) | 4.0.4 | 0.4.0 | 6 → 6 |
 | [FontCatalyst](https://github.com/andrewsipe/FontCatalyst) | 1.3.9 | 0.4.0 | 5 → 5 |
-| [FileRenamer](https://github.com/andrewsipe/FileRenamer) (`fontrenamer`) | 0.2.2 | 0.4.0 | 9 → 14 |
+| [FileRenamer](https://github.com/andrewsipe/FileRenamer) (`fontrenamer`) | 0.3.0 | 0.4.0 | 9 → 14 |
 | [FontExtractor2](https://github.com/andrewsipe/FontExtractor2) | 0.2.2 | 0.2.1 (behind) | 8 → 14 |
 
 Run `python tools/vendor_fontcore.py check` for the live answer; this table is a snapshot.
