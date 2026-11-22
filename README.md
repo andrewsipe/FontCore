@@ -30,14 +30,14 @@ Workflow for a change: edit `src/FontCore/`, run the tests, bump `version` in `p
 | Tool | Version | FontCore it carries | Modules declared → vendored |
 |---|---|---|---|
 | [FontNameID](https://github.com/andrewsipe/FontNameID) (`fontnameid`) | 0.4.0 | 0.4.0 | 12 → 16 |
-| [FontFixer](https://github.com/andrewsipe/FontFixer) | 1.4.0 | 0.4.0 | 4 → 4 |
+| [FontFixer](https://github.com/andrewsipe/FontFixer) | 1.4.1 | 0.4.0 | 4 → 4 |
 | [Filename_Tools](https://github.com/andrewsipe/Filename_Tools) (`filenametools`) | 0.3.0 | 0.4.0 | 3 → 5 |
-| [Ebrium](https://github.com/andrewsipe/Ebrium) | 4.0.3 | 0.3.1 | 6 → 6 |
-| [FontCatalyst](https://github.com/andrewsipe/FontCatalyst) | 1.3.8 | 0.3.1 | 5 → 5 |
+| [Ebrium](https://github.com/andrewsipe/Ebrium) | 4.0.4 | 0.4.0 | 6 → 6 |
+| [FontCatalyst](https://github.com/andrewsipe/FontCatalyst) | 1.3.9 | 0.4.0 | 5 → 5 |
 | [FileRenamer](https://github.com/andrewsipe/FileRenamer) (`fontrenamer`) | 0.2.2 | 0.4.0 | 9 → 14 |
 | [FontExtractor2](https://github.com/andrewsipe/FontExtractor2) | 0.2.2 | 0.2.1 (behind) | 8 → 14 |
 
-Ebrium and FontCatalyst carry 0.3.1 but hold the same modules as 0.4.0 (the modules they use did not change). Run `python tools/vendor_fontcore.py check` for the live answer; this table is a snapshot.
+Run `python tools/vendor_fontcore.py check` for the live answer; this table is a snapshot.
 
 ### Conventions that the tests enforce
 
