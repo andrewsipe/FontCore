@@ -25,7 +25,7 @@ python tools/vendor_fontcore.py sync ../Ebrium   # copy, stamp, remove stale mod
 
 Workflow for a change: edit `src/FontCore/`, run the tests, bump `version` in `pyproject.toml` and `src/FontCore/__init__.py`, commit, tag `vX.Y.Z`, then `sync` the consumers whose modules changed (`check` shows which) and release them.
 
-### Consumers (as of 2026-11-21, FontCore 0.4.0)
+### Consumers (as of 2026-11-22, FontCore 0.4.0)
 
 | Tool | Version | FontCore it carries | Modules declared → vendored |
 |---|---|---|---|
