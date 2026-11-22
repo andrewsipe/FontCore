@@ -381,3 +381,10 @@ question for the whole run, and `--weight-position last|first` says where the wo
   Position `first` puts it at the front, for bespoke words that follow the weight: `Carved` -> `Light Carved`.
 - The choice applies to IDs 1, 2, 4, 16 and 17 together, because it is made where the filename style is read, so the names cannot
   disagree. `--weight-word Regular` follows the usual Regular rules (ID1 drops it, ID4 and ID17 keep it); `--weight-word Bold` makes ID2 Bold.
+
+## Oblique flags (2026-11-21)
+
+fontnameid gives an Oblique-named face ID2 Italic and writes fsSelection ITALIC and macStyle italic. FontFixer used to clear ITALIC on
+such a face (OBLIQUE only), so a run of FontFixer after fontnameid undid it. FontFixer now sets ITALIC and macStyle italic for an
+Oblique name, and OBLIQUE as well on OS/2 v4+. Flags follow the label in both tools; a slanted face named Regular keeps Regular flags.
+The tool order FontFixer -> fontnameid -> FontFixer -> ebrium now leaves the flags unchanged on the second pass.
