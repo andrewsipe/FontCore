@@ -189,11 +189,8 @@ def construct_copyright(year: int, holder: str) -> str:
 
 def describe_holder_source(holder_override: str | None) -> str:
     if is_explicit_rights_holder_override(holder_override):
-        return f"holder override: '{str(holder_override).strip()}'"
-    return (
-        "holder per file from nameID 8 & 9 "
-        "('{manufacturer} & {designer}' when both differ)"
-    )
+        return f"rights holder: {str(holder_override).strip()} (-d)"
+    return "rights holder from each font's manufacturer and designer names (nameIDs 8 and 9)"
 
 
 def describe_copyright_year_source(
@@ -202,16 +199,16 @@ def describe_copyright_year_source(
     use_current_year: bool = False,
 ) -> str:
     if use_current_year:
-        return "year: current calendar year (--current-year)"
+        return "year: the current year (--current-year)"
     if manual_year is not None:
         return f"year: {manual_year} (--year)"
-    return "year per file: head.created → existing nameID 0 → current year"
+    return "year from each font's creation date, then its existing copyright notice, then the current year"
 
 
 def describe_trademark_family_source(family_override: str | None) -> str:
     if family_override and str(family_override).strip():
-        return f"family override: '{str(family_override).strip()}'"
-    return "family per file: nameID 16 → nameID 1 → filename stem"
+        return f"family: {str(family_override).strip()} (--family)"
+    return "family from each font's typographic family (nameID 16), then its family name (nameID 1), then its filename"
 
 
 def extract_year_from_copyright(text: str | None) -> int | None:
