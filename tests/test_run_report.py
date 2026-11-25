@@ -137,3 +137,10 @@ def test_run_sentence_matches_reporter():
     r = RunReporter(total=1)
     r.counts.update(updated=1, unchanged=2)
     assert r.sentence() == cs.fmt_run_sentence(1, 2, 0)
+
+
+def test_sentence_with_own_verb_and_no_unchanged():
+    import FontCore.core_console_styles as cs
+
+    assert cs.fmt_run_sentence(3, None, 0, verb="Converted") == "Converted 3, no problems."
+    assert cs.fmt_run_sentence(3, None, 1, 2, verb="Converted") == "Converted 3, skipped 2, 1 problem."
