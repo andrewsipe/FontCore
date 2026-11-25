@@ -489,3 +489,15 @@ Four summary formats, and no run exits non-zero because a file failed.
 | Q30 | One summary line shape from a shared helper, each tool supplying its own verb: `Renamed 12, skipped 3, 1 problem.` | **Yes** (as the writing skill says). |
 | Q31 | Per file, every tool prints one block in this order: header (`PARSING File n of N`), what changed, the result (`SAVED TO`, `NO CHANGE`, ...), including with `-j`. FontFixer now does; the others are checked. | **Yes.** |
 | Q32 | Output that is not a terminal (a pipe or a file): no color, no progress bar, one line per event; `NO_COLOR` is honored. | **Yes.** |
+
+### Feedback and what was built (2026-11-25)
+
+- **Q13 withdrawn.** A shared "earlier-run folder" skip assumes too much: a file added to a folder called `_archive` or `_converted` would be treated as
+  processed without checking it. The collector never skips a folder by its name. FontCatalyst keeps its own rule for now; a per-file check is the better
+  design and is on the list.
+- **Q21 and area 5 deferred.** Whether a font is variable is decided by its tables (`fvar`, `STAT`; the policy already has an `is_variable` check), not by
+  its filename. Area 5 comes back as its own discussion.
+- **Area 6 reopened** as a design discussion (see the proposal in the conversation): a better uniform layout system than one shared style module.
+- **Built (FontCore 0.7.0):** Q11, Q12, Q14, Q15, Q16 (one walker behind every collector function; not recursive by default; junk and hidden items skipped;
+  each real file once; `on_missing` and `on_unsupported`; TTX only when a tool asks) and Q17, Q18, Q19, Q20 (collections never renamed, only `fontrenamer`
+  renames an extension, `is_readable()` and `describe_extension_mismatch()`).
