@@ -109,3 +109,31 @@ def test_an_unknown_outcome_is_an_error_not_a_crash(bad):
     r = RunReporter(console=con, total=1)
     r.file(1, FileReport(name="a", outcome=bad))
     assert r.counts["error"] == 1 and r.exit_code() == 1
+
+
+def test_processing_summary_is_one_sentence_and_warns_on_errors():
+    import io
+    from rich.console import Console
+    import FontCore.core_console_styles as cs
+
+    def render(**kw):
+        buf = io.StringIO()
+        cs.fmt_processing_summary(console=Console(file=buf, width=100, force_terminal=False), **kw)
+        return buf.getvalue()
+
+    clean = render(updated=2, unchanged=4, errors=0)
+    assert "Updated 2, unchanged 4, no problems." in clean and "SUCCESS" in clean
+    bad = render(updated=0, unchanged=2, errors=2, skipped=1)
+    assert "Updated 0, unchanged 2, skipped 1, 2 problems." in bad and "WARNING" in bad
+    preview = render(dry_run=True, updated=3, unchanged=1, errors=1)
+    assert "Would update 3, unchanged 1, 1 problem." in preview
+
+
+def test_run_sentence_matches_reporter():
+    import FontCore.core_console_styles as cs
+    from FontCore.core_run_report import RunReporter
+
+    assert cs.fmt_run_sentence(1, 2, 0) == "Updated 1, unchanged 2, no problems."
+    r = RunReporter(total=1)
+    r.counts.update(updated=1, unchanged=2)
+    assert r.sentence() == cs.fmt_run_sentence(1, 2, 0)
