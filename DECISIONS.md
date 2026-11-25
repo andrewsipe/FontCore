@@ -4,8 +4,8 @@ Working draft, 2026-11-20. Each area lists what the code decides today (with rea
 your call. **Answers to Q1–Q10 are recorded in "Decided" below.** Answer by number ("Q1 yes, Q2 b, Q4 a"). Your answers become the "How it decides" page on the docsite, so
 anything marked **keep** is written down as intended, and anything you change gets a test first.
 
-Areas: **1. Style vocabulary** and **2. How names are built** (this pass). Still to come: 3. File collection,
-4. Extension checks, 5. Variable-font filenames, 6. The console contract.
+Areas: **1. Style vocabulary** and **2. How names are built** (done). **3. File collection, 4. Extension checks, 5. Variable-font filenames and
+6. The console contract** are written up in "Areas 3 to 6" at the end (2026-11-25), each question with a recommended answer.
 
 ---
 
@@ -388,3 +388,104 @@ fontnameid gives an Oblique-named face ID2 Italic and writes fsSelection ITALIC 
 such a face (OBLIQUE only), so a run of FontFixer after fontnameid undid it. FontFixer now sets ITALIC and macStyle italic for an
 Oblique name, and OBLIQUE as well on OS/2 v4+. Flags follow the label in both tools; a slanted face named Regular keeps Regular flags.
 The tool order FontFixer -> fontnameid -> FontFixer -> ebrium now leaves the flags unchanged on the second pass.
+
+## Areas 3 to 6 (2026-11-25): what the code does today, and the questions
+
+Each question has a recommended answer (**Rec**). "accept all" takes every recommendation; otherwise answer by number.
+
+### Area 3: File collection (`core_file_collector.py`)
+
+Probed on a tree with `top.ttf`, `UPPER.TTF`, `sub/deep.otf`, `w.woff`, a symlink to `top.ttf`, `._appledouble.ttf`, `__MACOSX/._junk.otf`,
+`.hidden/h.ttf`, `_archive/old.ttf`, `a.ttc` and `notes.ttf.bak`:
+
+| Behavior | `iter_font_files` | `collect_font_files` |
+|---|---|---|
+| Default for `recursive` | **True** | **False** |
+| `._appledouble.ttf`, `__MACOSX/._junk.otf` | returned (not fonts; opening them fails) | not returned (it skips dot files) |
+| `.hidden/h.ttf` | returned | not returned |
+| `_archive/old.ttf` (a folder the tools create) | returned | returned |
+| The symlink and its target | `top.ttf` returned **twice** (the link is resolved) | both kept as separate paths |
+| The same folder given twice | every font twice (10 for 4) | de-duplicated (4) |
+| A path that does not exist | silently ignored | silently ignored |
+| `.ttc`, `.dfont`, `.eot` | ignored without a word | ignored without a word |
+| `.ttx` | included in the default set | included |
+
+FontCatalyst has its own rule for folders from an earlier run (`_archive`, `_quarantine`, `_converted`, `_converted_top`, `_ttx`, `_ttx_top`);
+no other tool does.
+
+| # | Question | Rec |
+|---|---|---|
+| Q11 | One default for recursion. | **Not recursive** in both; a tool asks for recursion with `-r`. |
+| Q12 | Skip macOS junk and hidden items in both functions: `._*` files, `__MACOSX` folders, dot folders (`.fontvault`, `.git`, `.Trash`). | **Yes**, with `include_hidden=True` for a tool that needs them. |
+| Q13 | Move FontCatalyst's earlier-run-folder rule into FontCore as a shared option. | **Yes**, off by default (`skip_output_dirs=...`); the folder a person names is always the source. |
+| Q14 | Each real file once: de-duplicate by resolved path in both functions (symlinked directories are still not followed). | **Yes.** |
+| Q15 | A missing input path is reported, not ignored. | **Yes**: a `missing` callback plus a helper the tools use to print "path not found". |
+| Q16 | Extension sets: default is the four binary formats; `.ttx` only when a tool asks (`fontnameid` and `fontcatalyst` do). Recognized-but-unsupported (`.ttc`, `.dfont`, `.eot`) are counted so a tool can say "skipped 3 collections". | **Yes.** |
+
+### Area 4: Extension checks (`core_font_extension.py`)
+
+Probed with a TrueType font named `.otf`, a CFF font named `.ttf`, a WOFF named `.ttf`, a file with no extension, a TTC named `.ttf`, a name clash,
+a truncated file and a TTX:
+
+- The format is read from the first four bytes only. A file cut off right after a valid header counts as valid (`trunc.ttf` is "TTF").
+- With `auto_fix` on (the default) it renames in place: `.otf` to `.ttf`, `.ttf` to `.otf`, a WOFF to `.woff`, no extension to `.ttf`,
+  a clash gets `~001` (`dup2~001.otf`).
+- **A TTC named `.ttf` is renamed `.ttc`, which no tool collects**, so the file silently drops out of every later run.
+- `.TTX` and other unknown content are trusted ("valid").
+
+| # | Question | Rec |
+|---|---|---|
+| Q17 | Never rename into an extension the tools skip: leave a TTC alone and say so. | **Yes.** |
+| Q18 | Keep renaming a wrong extension (it is a fact, not a naming choice), but only in the tool whose job is renaming (`fontrenamer`); the others report the mismatch and carry on. | **Yes.** |
+| Q19 | A file with a valid header that does not open is reported as **damaged** (a separate check that opens the font), not as valid. | **Yes**: new `is_readable()` helper; the tools that quarantine use it. |
+| Q20 | Keep `~001` for a name clash (same suffix the conflict model uses). | **Keep.** |
+
+### Area 5: Variable-font filenames (`core_variable_filename_parser.py`, `core_name_policies.py`)
+
+What the parser and the ID builders give today (family "Probe"):
+
+| Filename | Understood as | ID1 | ID4 | ID16 | ID17 |
+|---|---|---|---|---|---|
+| `Probe-Variable` | static_aligned | Probe Variable | Probe Variable | Probe Variable | **Regular** |
+| `Probe-VariableItalic` | slope Italic | Probe Variable | Probe Variable Italic | Probe Variable | **Italic** |
+| `Probe-Variable-Italic` | slope Italic | Probe Variable | Probe Variable Italic | Probe Variable | **Italic** |
+| `Probe-ItalicVariable` | **width "Italic"** | **Probe Italic Variable** | Probe Italic Variable | Probe Variable | Italic |
+| `ProbeVariable-Italic` | inverted | Probe Variable | Probe Variable | Probe Variable | **Regular** (the Italic is lost) |
+| `Probe-CondensedVariable` | width | Probe Condensed Variable | Probe Condensed Variable | Probe Variable | **Condensed** (a static gives `Condensed Regular`) |
+| `Probe-BoldVariable` | **invalid** (weight before Variable) | Probe Variable | Probe Variable | Probe Variable | Regular (the Bold is dropped without a word) |
+| `Probe-VF` | Variable | Probe Variable | ... | ... | Regular |
+| `Probe[wght]`, `Probe-Italic[wght]`, `Probe[opsz,wght]`, `ProbeVF-Regular`, `Probe-Var` | **not recognized as variable** | | | | |
+
+The pairing markers `Upright` and `Roman` are elided (ID17 `Regular`); `Cursive`, `Slanted`, `Oblique` and `Backslant` stay.
+
+| # | Question | Rec |
+|---|---|---|
+| Q21 | Recognize Google-style axis suffixes as the variable marker: `Probe[wght]`, `Probe-Italic[wght]`, `Probe[opsz,wght]` (axes noted, not used for names), plus `-VF`, `-Var` and a trailing `VF` in the family. | **Yes.** They become `Probe Variable` and `Probe Variable Italic` like the rest. |
+| Q22 | In the inverted layout (`ProbeVariable-Italic`) the slope after the hyphen counts. Today an italic file is named like the upright one. | **Yes** (it is a bug). |
+| Q23 | `Probe-ItalicVariable`: a slope word before `Variable` is a slope, not a width. | **Yes** (it is a bug). |
+| Q24 | ID17 follows the static rule (Q8, Q9): upright `Regular`, italic `Regular Italic` (never plain `Italic`), width only `Condensed Regular`. | **Yes**: the weight axis defaults to Regular. |
+| Q25 | ID4 keeps `Regular` like a static (C1): `Probe Variable Regular`, `Probe Variable Regular Italic`. | **Yes.** |
+| Q26 | A weight word before `Variable` (`Probe-BoldVariable`): do not write names that silently lose it; leave the font unchanged with a warning. | **Yes.** |
+| Q27 | ID16 stays `Probe Variable` for every file of the family; ID1 stays `Probe Variable` for the upright and the italic (C4). | **Keep.** |
+
+### Area 6: The console contract (`core_console_styles.py` and each tool's summary)
+
+Each tool was run on a folder with one good font and one corrupt font (a valid header followed by zeros):
+
+| Tool | Summary line | Exit code | The corrupt font |
+|---|---|---|---|
+| `fontnameid 8 -man X -y` | `updated: 1 \| unchanged: 1 \| errors: 0` | 0 | counted **unchanged**, no error |
+| `fontcatalyst` | `Done. pass 1, fail 1, error 0.` | 0 | `fail 1` |
+| `fontrenamer` | a boxed Summary: Renamed / Skipped / Invalid | 0 | not counted |
+| `fontfixer` | handler statistics and a family survey | 0 | quarantine (or an error) |
+| `filenametools`, `fontdeduper` | their own wording | 0 | n/a |
+
+Four summary formats, and no run exits non-zero because a file failed.
+
+| # | Question | Rec |
+|---|---|---|
+| Q28 | Exit codes for every tool: **0** all done, **1** at least one file failed or errored, **2** wrong usage. | **Yes.** |
+| Q29 | A font that cannot be read is always an **error** with its reason, never "unchanged" or silently skipped. | **Yes.** |
+| Q30 | One summary line shape from a shared helper, each tool supplying its own verb: `Renamed 12, skipped 3, 1 problem.` | **Yes** (as the writing skill says). |
+| Q31 | Per file, every tool prints one block in this order: header (`PARSING File n of N`), what changed, the result (`SAVED TO`, `NO CHANGE`, ...), including with `-j`. FontFixer now does; the others are checked. | **Yes.** |
+| Q32 | Output that is not a terminal (a pipe or a file): no color, no progress bar, one line per event; `NO_COLOR` is honored. | **Yes.** |
