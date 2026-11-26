@@ -98,7 +98,7 @@ def test_the_designer_s_slope_spelling_is_kept():
         ("Probe-Variable3AxisItalic", "Probe-VariableItalic"),
         ("Probe-Variable2Axis", "Probe-Variable"),
         ("Probe-Variable4Axes", "Probe-Variable"),
-        ("Probe-VariableRegular", "Probe-Variable"),
+        ("Probe-VariableRegular", "ProbeRegular-Variable"),
         ("Probe-VariableNormal", "Probe-Variable"),
         ("Probe-VariableRoman", "Probe-VariableUpright"),
         ("ReaderPro-CondensedVariable", "ReaderProCondensed-Variable"),
@@ -237,6 +237,24 @@ def test_a_weight_less_font_with_only_regular_gets_the_weight_placeholder(tmp_pa
     slots = resolve(font, tmp_path, "Parch-Variable.ttf")
     assert stem(slots) == "ParchWeight-WidthVariableUpright"
     assert build_id16_from_variable_slots(slots) == "Parch Weight Variable"
+
+
+def test_a_locked_regular_is_written_so_it_is_not_taken_for_a_free_weight(tmp_path):
+    font = make(axes=WIDTH_ONLY, id17="Regular")
+    slots = resolve(font, tmp_path, "AugureStereo-Variable.ttf")
+    assert stem(slots) == "AugureStereoRegular-WidthVariableUpright"
+    assert build_id16_from_variable_slots(slots) == "Augure Stereo Regular Variable"
+    free = resolve(make(axes=(("wght", 100, 400, 900), ("wdth", 75, 100, 125))), tmp_path, "AugureStereo-Variable.ttf")
+    assert stem(free) == "AugureStereo-WidthVariableUpright"  # a free weight stays unmarked: the two differ
+
+
+def test_a_regular_in_the_filename_is_kept_when_the_weight_is_locked(tmp_path):
+    font = make(axes=WIDTH_ONLY, style="Regular")
+    assert stem(resolve(font, tmp_path, "Probe-VariableWidthRegular.ttf")) == "ProbeRegular-WidthVariableUpright"
+
+
+def test_a_regular_in_the_filename_is_dropped_when_the_weight_is_free(tmp_path):
+    assert stem(resolve(make(), tmp_path, "Probe-VariableRegular.ttf")) == "Probe-VariableUpright"
 
 
 def test_a_slope_only_font_needs_no_slope_word_only_the_weight_in_the_family(tmp_path):

@@ -459,9 +459,11 @@ words and the designer's slope word. Variable fonts have their own name engine (
 - **Collection:** a font with all four registered axes free (weight, width, optical size, slope) is a collection or super family:
   `ProbeCollection-Variable`.
 - **Weight words:** a locked weight is written in the family (`AugureStereoLight-WidthVariable`). It comes from the filename or, for a font
-  with no weight axis, from its name table (ID17, ID2, instance names, a STAT label), never from `usWeightClass`. `Regular`, `Normal` and
-  `Roman` are never written. A font with no weight axis and no usable weight word gets the placeholder `Weight` in the family
-  (`ParchWeight-CustomVariableUpright`): a locked weight nobody has named yet, for the tools to ask about.
+  with no weight axis, from its name table (ID17, then ID2 except `Regular`, then instance names, then a STAT label), never from `usWeightClass`.
+  **`Regular` is a weight word here**: a locked Regular is a different font from a free weight, so `AugureStereoRegular-WidthVariable` is not
+  `AugureStereo-WidthVariable`. `Normal` and `Roman` are not read as weights, and ID2 saying `Regular` is not evidence (it names the RIBBI slot).
+  A font with no weight axis and no weight word in its names gets the placeholder `Weight` in the family (`ParchWeight-CustomVariableUpright`):
+  a locked weight nobody has named yet, for the tools to ask about.
 - **A font with no free axes** at all is static in effect and is named as a static font, with a flag.
 - Examples: `Probe-Variable`, `Probe-VariableUpright`, `Probe-VariableItalic`, `Probe-WidthVariable`, `Probe-WidthVariableItalic`,
   `AugureStereoLight-WidthVariable`, `AugureStereoLight-WidthVariableUpright`, `ProbeCondensed-VariableItalic`, `ProbeDisplay-Variable`,
@@ -496,7 +498,7 @@ words and the designer's slope word. Variable fonts have their own name engine (
 5. The slope word comes from the named instances' trailing word first, then the name cues, then `fsSelection` bit 9 (Oblique), then `Italic` with a warning.
 
 **Plausible, not exact:** a font with no weight axis and no weight word in its names (the placeholder) reads as locked-but-unnamed; tools should prompt for
-the name. Reading names for a locked weight finds a word for about 8% of weight-less fonts and `Regular`/`Normal` for most of the rest, which count as unnamed.
+the name. Reading the names finds a weight word (most often `Regular`) for about three quarters of weight-less fonts; the rest get the placeholder.
 Named instances are never used for ID17: the default instance would give two files in 23% of multi-file families the same ID16 + ID17.
 
 ### Area 6: The console contract (`core_console_styles.py` and each tool's summary)

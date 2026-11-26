@@ -214,8 +214,18 @@ def test_a_weight_less_font_takes_its_locked_weight_from_its_names(kwargs, word)
     assert traits(make(axes=WIDTH_ONLY, **kwargs)).locked_weight == word
 
 
-@pytest.mark.parametrize("label", ["Regular", "Normal", "Roman", "Italic", "Upright"])
-def test_regular_normal_and_roman_are_never_a_locked_weight(label):
+def test_a_locked_regular_is_a_weight_word_when_a_name_states_it():
+    assert traits(make(axes=WIDTH_ONLY, style="Regular", id17="Regular")).locked_weight == "Regular"
+    assert traits(make(axes=WIDTH_ONLY, style="Regular", instances=("Regular", "Regular"))).locked_weight == "Regular"
+
+
+def test_id2_saying_regular_is_not_evidence_of_a_weight():
+    # ID2 is Regular for nearly every font that is not Bold: it names the RIBBI slot, not a weight
+    assert traits(make(axes=WIDTH_ONLY, style="Regular")).locked_weight is None
+
+
+@pytest.mark.parametrize("label", ["Normal", "Roman", "Italic", "Upright"])
+def test_normal_roman_and_slope_words_are_not_a_locked_weight(label):
     assert traits(make(axes=WIDTH_ONLY, style="Regular", id17=label)).locked_weight is None
 
 
