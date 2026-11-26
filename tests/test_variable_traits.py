@@ -12,7 +12,7 @@ from FontCore.core_variable_traits import analyze_variable_traits
 
 
 def make(axes=(("wght", 100, 400, 900),), *, style="Regular", italic_bits=False, oblique_bit=False,
-         stat_ital=None, instances=(), weight_class=400, filename=None):
+         stat_ital=None, instances=(), weight_class=400, filename=None, id17=None):
     """A tiny variable font. ``axes`` is (tag, min, default, max)."""
     fb = FontBuilder(1000, isTTF=True)
     fb.setupGlyphOrder([".notdef"])
@@ -28,6 +28,8 @@ def make(axes=(("wght", 100, 400, 900),), *, style="Regular", italic_bits=False,
             {"location": {axes[0][0]: axes[0][2]}, "stylename": name} for name in instances
         ])
     font = fb.font
+    if id17:
+        font["name"].setName(id17, 17, 3, 1, 0x409)
     sel = font["OS/2"].fsSelection
     if italic_bits:
         sel |= 1
@@ -194,3 +196,54 @@ def test_the_name_cue_keeps_the_designer_s_spelling_too():
     assert traits(make(style="Slant", italic_bits=True)).slope_word == "Slant"
     assert traits(make(style="Backslant", italic_bits=True)).slope_word == "Backslant"
     assert traits(make(style="Reclined", italic_bits=True)).slope_word == "Reclined"
+
+
+# ---- a locked weight comes from the names, never from usWeightClass; Regular is not a weight word ------------------
+
+WIDTH_ONLY = (("wdth", 75, 100, 125),)
+
+
+@pytest.mark.parametrize("kwargs,word", [
+    (dict(id17="Bold"), "Bold"),
+    (dict(style="Light"), "Light"),
+    (dict(style="Regular", instances=("Black", "Black")), "Black"),
+    (dict(style="Regular", id17="Extra Light"), "Extralight"),
+    (dict(style="Regular", id17="SemiBold"), "Semibold"),
+])
+def test_a_weight_less_font_takes_its_locked_weight_from_its_names(kwargs, word):
+    assert traits(make(axes=WIDTH_ONLY, **kwargs)).locked_weight == word
+
+
+@pytest.mark.parametrize("label", ["Regular", "Normal", "Roman", "Italic", "Upright"])
+def test_regular_normal_and_roman_are_never_a_locked_weight(label):
+    assert traits(make(axes=WIDTH_ONLY, style="Regular", id17=label)).locked_weight is None
+
+
+def test_the_weight_class_is_never_the_source():
+    assert traits(make(axes=WIDTH_ONLY, style="Regular", weight_class=900)).locked_weight is None
+
+
+def test_a_font_with_a_weight_axis_has_no_locked_weight():
+    assert traits(make(id17="Bold")).locked_weight is None
+
+
+# ---- a font with no free axes at all is static in effect -----------------------------------------------------
+
+def test_a_font_whose_every_axis_is_locked_has_no_free_axes():
+    t = traits(make(axes=(("wght", 400, 400, 400),)))
+    assert t.no_free_axes and t.free_axes == ()
+
+
+def test_a_font_with_a_free_axis_is_not_static_like():
+    assert not traits(make()).no_free_axes
+
+
+# ---- instances vote only when they positively end in a slope word -----------------------------------------------
+
+def test_instances_that_do_not_end_in_a_slope_word_do_not_vote_upright():
+    assert traits(make(instances=("Light", "Bold"))).slope_votes["instances"] is None
+
+
+def test_italic_bits_and_names_win_over_upright_looking_instances_and_stat_without_a_tie():
+    t = traits(make(style="Italic", italic_bits=True, stat_ital=(0, "Roman"), instances=("Light", "Bold")))
+    assert t.slope == "italic" and not any("tied" in w for w in t.warnings)

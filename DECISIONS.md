@@ -440,63 +440,63 @@ a truncated file and a TTX:
 | Q19 | A file with a valid header that does not open is reported as **damaged** (a separate check that opens the font), not as valid. | **Yes**: new `is_readable()` helper; the tools that quarantine use it. |
 | Q20 | Keep `~001` for a name clash (same suffix the conflict model uses). | **Keep.** |
 
-### Area 5: Variable-font filenames and IDs (decided 2026-11-25, refined 2026-11-26; replaces Q21 to Q27)
+### Area 5: Variable-font filenames and IDs (decided 2026-11-25, refined 2026-11-26, third form 2026-11-26)
 
-A variable font is not a static font with a flag. A static name describes one face. A variable name says what is **free**
-(the axes) and what is **fixed** (optical size, width, weight, slope). The font's tables decide whether it is variable and
-which axes are free; the filename supplies the family, the locked words, and the designer's slope word.
+A variable font is a family (or a slice of one), not a single face. What is **fixed** about it says which family it is; what **varies**
+is the subfamily. The font's tables decide whether it is variable and which axes are free; the filename supplies the family, the locked
+words and the designer's slope word. Variable fonts have their own name engine (`core_variable_*`), separate from the static one.
 
-**Filename:** `{Family}{OpticalSize}{Width}-Variable{Axes}{Weight}{Slope}`
+**Filename:** `Family{OpticalSize}{Width}{Variant}{Weight}-{FreeExtras}Variable{Slope}`
 
-- Before the hyphen is the fixed design: family, locked optical size, locked width. `Variable` always comes first after the
-  hyphen (a scannable position). `Variable`, not `VF` or `VAR`.
-- **The baseline is weight plus a free slope.** Bare `Variable` is "weight and slope are both free": the purest single family.
-- **Slope** appears only when it is locked: `Upright`, or the designer's own word (`Italic`, `Oblique`, `Slant`, `Slanted`,
-  `Backslant`, `Backslanted`, `Reverse`, `Reclined`, `Cursive`, `Kursiv`), kept as the designer spelled it. No slope word means the slope is free.
-- **Axes** are extras on top of weight and slope: `Width`, `OpticalSize`, in that order, then `Custom` for any unregistered axis.
-  No axis counts and no `Slope` word.
+- **Before the hyphen is what is fixed**, in the static order: optical size, width, weight. A design variant (Alt, Cut, Swash, Capitals...)
+  is part of the family too. Locked values are family words, not style words.
+- **After the hyphen is what varies.** `Variable` is the marker. Left of it, the free extra axes: `Width`, `OpticalSize`, then `Custom`
+  for any unregistered axis. Right of it, a locked slope: `Upright`, or the designer's own word (`Italic`, `Oblique`, `Slant`, `Backslant`,
+  `Reclined`, `Rotalic`...), kept as spelled. Read it as a phrase: "Width Variable Upright".
+- **`Variable` means weight and slope, whichever of them is not fixed elsewhere.** No weight word in the family means the weight is free; no
+  slope word after `Variable` means the slope is free. Bare `Variable` is therefore the purest single family (weight + free slope).
+  There is no `Slope` word and there are no axis counts.
 - **Collection:** a font with all four registered axes free (weight, width, optical size, slope) is a collection or super family:
-  `Collection` goes in the family name (`ProbeCollection-Variable`), and the axes after the hyphen are only `Custom` if there is one.
-- **Design variants** (Alt, Cut, Swash, Capitals, Layer, Inline: fixed alternative designs of a family, not axes) are part of the
-  family: any word after `Variable` that is not an axis, weight or slope word moves before the hyphen (`ProbeAlt-Variable`, `ProbeCut-VariableItalic`)
-  and into ID16/ID1 ("Probe Alt Variable"). `Alt` is not special-cased (surveyed: 19 of 5,284 vault files have such a word).
-- **Weight** appears only when it is locked and the filename already says so (`-VariableBlack`). It is never derived from `usWeightClass`
-  (surveyed: 81% of weight-less fonts say 400 and some are plain wrong).
-- Examples: `Probe-Variable` (weight + free slope), `Probe-VariableUpright`, `Probe-VariableItalic`, `Probe-VariableWidth`,
-  `Probe-VariableWidthUpright`, `Probe-VariableOpticalSizeItalic`, `Probe-VariableCustomUpright`, `ProbeCollection-Variable`,
-  `ProbeDisplayCondensed-VariableUpright`.
+  `ProbeCollection-Variable`.
+- **Weight words:** a locked weight is written in the family (`AugureStereoLight-WidthVariable`). It comes from the filename or, for a font
+  with no weight axis, from its name table (ID17, ID2, instance names, a STAT label), never from `usWeightClass`. `Regular`, `Normal` and
+  `Roman` are never written. A font with no weight axis and no usable weight word gets the placeholder `Weight` in the family
+  (`ParchWeight-CustomVariableUpright`): a locked weight nobody has named yet, for the tools to ask about.
+- **A font with no free axes** at all is static in effect and is named as a static font, with a flag.
+- Examples: `Probe-Variable`, `Probe-VariableUpright`, `Probe-VariableItalic`, `Probe-WidthVariable`, `Probe-WidthVariableItalic`,
+  `AugureStereoLight-WidthVariable`, `AugureStereoLight-WidthVariableUpright`, `ProbeCondensed-VariableItalic`, `ProbeDisplay-Variable`,
+  `Probe-OpticalSizeCustomVariable`, `ProbeCollection-Variable`, `ProbeAlt-Variable`.
 
 **IDs** (`Variable` stays in the family name; ID16 and ID17 are always written because the vault list uses them):
 
-- ID16: the fixed design plus `Variable` ("Probe Display Condensed Variable"; "Probe Collection Variable").
-- ID1: ID16 plus the axes words and any locked weight, plus an angle word other than Italic.
-- ID17: the filename's style words, spaced and without `Variable`, with the slope written out: `Upright` for a fixed upright, the
-  designer's word for a fixed slope, and `Upright Italic` when the slope is free (so bare `Variable` is "Upright Italic",
-  `VariableWidth` is "Width Upright Italic"). `Regular` is never used outside ID2.
-- ID4: ID16 plus ID17. ID2 follows the existing ID2 rule.
+- ID16: the fixed family spec plus `Variable` ("Augure Stereo Light Variable").
+- ID1: ID16 plus the free extras and an angle word other than Italic.
+- ID17: the filename's words after the hyphen, spaced and without `Variable`, with the slope written out: `Upright`, the designer's word, or
+  `Upright Italic` when the slope is free (bare `Variable` is "Upright Italic"; `WidthVariable` is "Width Upright Italic"). `Regular` never appears
+  outside ID2.
+- ID4: ID16 plus ID17. ID2 follows the existing ID2 rule (it is tied to `fsSelection` and `macStyle`, which this work does not change).
 
 | File | ID1 / ID2 | ID16 | ID17 | ID4 |
 |---|---|---|---|---|
 | `Probe-Variable` | Probe Variable / Regular | Probe Variable | Upright Italic | Probe Variable Upright Italic |
-| `Probe-VariableUpright` | Probe Variable / Regular | Probe Variable | Upright | Probe Variable Upright |
 | `Probe-VariableItalic` | Probe Variable / Italic | Probe Variable | Italic | Probe Variable Italic |
-| `Probe-VariableWidthUpright` | Probe Variable Width / Regular | Probe Variable | Width Upright | Probe Variable Width Upright |
-| `Probe-VariableCustom` | Probe Variable Custom / Regular | Probe Variable | Custom Upright Italic | Probe Variable Custom Upright Italic |
+| `Probe-WidthVariableUpright` | Probe Variable Width / Regular | Probe Variable | Width Upright | Probe Variable Width Upright |
+| `Probe-CustomVariable` | Probe Variable Custom / Regular | Probe Variable | Custom Upright Italic | Probe Variable Custom Upright Italic |
+| `AugureStereoLight-WidthVariable` | Augure Stereo Light Variable Width / Regular | Augure Stereo Light Variable | Width Upright Italic | Augure Stereo Light Variable Width Upright Italic |
 | `ProbeCollection-Variable` | Probe Collection Variable / Regular | Probe Collection Variable | Upright Italic | Probe Collection Variable Upright Italic |
 
 **Slope: how the builder decides** (checked against all 5,284 variable fonts in the vault):
 
 1. A free `ital` or `slnt` axis in `fvar` (min below max): the slope is free.
-2. Otherwise it is fixed. Votes: STAT (`ital` value 1 only = italic, 0 only = upright), the italic bits (`fsSelection` bit 0 or 9,
-   `macStyle` bit 1), name cues (ID2, ID17, ID4, ID6, filename), and the named instances when there are any (all end in a slope
-   word = italic, none = upright, mixed = no vote). The majority decides; a tie goes to the name cue and is reported.
+2. Otherwise it is fixed. Votes: STAT (`ital` value 1 only = italic, 0 only = upright), the italic bits (`fsSelection` bit 0 or 9, `macStyle` bit 1),
+   name cues (ID2, ID17, ID4, ID6, filename), and the named instances (all end in a slope word = italic; otherwise no vote: the absence of a slope
+   word is not evidence of upright). The majority decides; a tie goes to the name cue and is reported.
 3. STAT contradicting the bits and the names is a warning, not a decision (STAT said upright on about 7% of italic fonts).
 4. `italicAngle` and the caret slope are **not** used: FontFixer wrote positive angles on upright fonts until 1.5.1.
-5. The slope word comes from the named instances' trailing word first (agrees with the name cue in 99% of fixed-slope fonts), then
-   the name cues, then `fsSelection` bit 9 (Oblique), then `Italic` with a warning. The designer's spelling is kept.
+5. The slope word comes from the named instances' trailing word first, then the name cues, then `fsSelection` bit 9 (Oblique), then `Italic` with a warning.
 
-**Plausible, not exact (decided 2026-11-26):** a font with no weight axis (387 of 5,284) is named by the same rules and so reads as if it
-had one; a font whose slope votes tie (about 70) is named by its name cue. Both are reported, and both get a deeper review later.
+**Plausible, not exact:** a font with no weight axis and no weight word in its names (the placeholder) reads as locked-but-unnamed; tools should prompt for
+the name. Reading names for a locked weight finds a word for about 8% of weight-less fonts and `Regular`/`Normal` for most of the rest, which count as unnamed.
 Named instances are never used for ID17: the default instance would give two files in 23% of multi-file families the same ID16 + ID17.
 
 ### Area 6: The console contract (`core_console_styles.py` and each tool's summary)
@@ -526,7 +526,7 @@ Four summary formats, and no run exits non-zero because a file failed.
 - **Q13 withdrawn.** A shared "earlier-run folder" skip assumes too much: a file added to a folder called `_archive` or `_converted` would be treated as
   processed without checking it. The collector never skips a folder by its name. FontCatalyst keeps its own rule for now; a per-file check is the better
   design and is on the list.
-- **Area 5 decided (2026-11-25):** see "Area 5: Variable-font filenames and IDs" above; built in FontCore 0.9.0, refined in 0.10.0.
+- **Area 5 decided (2026-11-25):** see "Area 5: Variable-font filenames and IDs" above; built in FontCore 0.9.0, refined in 0.10.x, third form in 0.11.0.
 - **Area 6 reopened** as a design discussion (see the proposal in the conversation): a better uniform layout system than one shared style module.
 - **Built (FontCore 0.7.0):** Q11, Q12, Q14, Q15, Q16 (one walker behind every collector function; not recursive by default; junk and hidden items skipped;
   each real file once; `on_missing` and `on_unsupported`; TTX only when a tool asks) and Q17, Q18, Q19, Q20 (collections never renamed, only `fontrenamer`
