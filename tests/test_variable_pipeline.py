@@ -64,3 +64,12 @@ def test_a_free_slope_axis_is_a_regular_id2(tmp_path):
 def test_a_static_font_keeps_the_detected_subfamily(tmp_path):
     path = save(make(axes=()), tmp_path, "Probe-Italic.ttf")
     assert variable_id2_subfamily(TTFont(path), path, "Italic") == "Italic"
+
+
+def test_the_fvar_table_decides_whether_a_font_is_variable_even_without_stat(tmp_path):
+    from FontCore.core_variable_font_detection import is_variable_font, is_variable_font_binary
+
+    font = make()  # fvar, no STAT
+    assert "STAT" not in font
+    assert is_variable_font(font) and is_variable_font_binary(font)
+    assert not is_variable_font_binary(font, strict=True)  # the spec-compliance question stays available
