@@ -440,33 +440,55 @@ a truncated file and a TTX:
 | Q19 | A file with a valid header that does not open is reported as **damaged** (a separate check that opens the font), not as valid. | **Yes**: new `is_readable()` helper; the tools that quarantine use it. |
 | Q20 | Keep `~001` for a name clash (same suffix the conflict model uses). | **Keep.** |
 
-### Area 5: Variable-font filenames (`core_variable_filename_parser.py`, `core_name_policies.py`)
+### Area 5: Variable-font filenames and IDs (decided 2026-11-25; replaces Q21 to Q27)
 
-What the parser and the ID builders give today (family "Probe"):
+A variable font is not a static font with a flag. A static name describes one face. A variable name says what is **free**
+(the axes) and what is **fixed** (optical size, width, weight, slope). The font's tables decide whether it is variable and
+which axes are free; the filename only supplies family, locked words, and which half of an upright/italic pair a file is.
 
-| Filename | Understood as | ID1 | ID4 | ID16 | ID17 |
-|---|---|---|---|---|---|
-| `Probe-Variable` | static_aligned | Probe Variable | Probe Variable | Probe Variable | **Regular** |
-| `Probe-VariableItalic` | slope Italic | Probe Variable | Probe Variable Italic | Probe Variable | **Italic** |
-| `Probe-Variable-Italic` | slope Italic | Probe Variable | Probe Variable Italic | Probe Variable | **Italic** |
-| `Probe-ItalicVariable` | **width "Italic"** | **Probe Italic Variable** | Probe Italic Variable | Probe Variable | Italic |
-| `ProbeVariable-Italic` | inverted | Probe Variable | Probe Variable | Probe Variable | **Regular** (the Italic is lost) |
-| `Probe-CondensedVariable` | width | Probe Condensed Variable | Probe Condensed Variable | Probe Variable | **Condensed** (a static gives `Condensed Regular`) |
-| `Probe-BoldVariable` | **invalid** (weight before Variable) | Probe Variable | Probe Variable | Probe Variable | Regular (the Bold is dropped without a word) |
-| `Probe-VF` | Variable | Probe Variable | ... | ... | Regular |
-| `Probe[wght]`, `Probe-Italic[wght]`, `Probe[opsz,wght]`, `ProbeVF-Regular`, `Probe-Var` | **not recognized as variable** | | | | |
+**Filename:** `{Family}{OpticalSize}{Width}-Variable{Axes}{Weight}{Slope}`
 
-The pairing markers `Upright` and `Roman` are elided (ID17 `Regular`); `Cursive`, `Slanted`, `Oblique` and `Backslant` stay.
+- Before the hyphen is the fixed design: family, locked optical size, locked width. Never counted.
+- `Variable` always comes first after the hyphen (a scannable position). `Variable`, not `VF` or `VAR`.
+- **Axes** (free axes, counting weight and a free slope axis): blank when only weight is free. Exactly one common extra axis is
+  named: `Width`, `OpticalSize`, `Slope` (a free `slnt` or `ital` axis). Anything else is a count: `3Axis`, `4Axis`, `13Axis`.
+  A custom axis alone is `2Axis`, never named (`VariableBlurry` is not allowed).
+- **Weight** appears only when weight is locked: `-VariableBlack`, `-VariableWidthRegular`. Absent means weight is free.
+- **Slope** appears only when fixed and not upright: `Italic`, or the font's own angle word (`Oblique`, `Reverse`, `Slanted`,
+  `Backslanted`). Upright has no word in the filename, and neither `Regular`, `Roman` nor `Upright` appears there.
+- Examples: `Probe-Variable`, `Probe-VariableItalic`, `Probe-VariableWidth`, `Probe-Variable4Axis`, `Probe-VariableBlackItalic`,
+  `ProbeDisplayCondensed-Variable3AxisItalic`, `RobotoFlex-Variable13Axis`.
 
-| # | Question | Rec |
-|---|---|---|
-| Q21 | Recognize Google-style axis suffixes as the variable marker: `Probe[wght]`, `Probe-Italic[wght]`, `Probe[opsz,wght]` (axes noted, not used for names), plus `-VF`, `-Var` and a trailing `VF` in the family. | **Yes.** They become `Probe Variable` and `Probe Variable Italic` like the rest. |
-| Q22 | In the inverted layout (`ProbeVariable-Italic`) the slope after the hyphen counts. Today an italic file is named like the upright one. | **Yes** (it is a bug). |
-| Q23 | `Probe-ItalicVariable`: a slope word before `Variable` is a slope, not a width. | **Yes** (it is a bug). |
-| Q24 | ID17 follows the static rule (Q8, Q9): upright `Regular`, italic `Regular Italic` (never plain `Italic`), width only `Condensed Regular`. | **Yes**: the weight axis defaults to Regular. |
-| Q25 | ID4 keeps `Regular` like a static (C1): `Probe Variable Regular`, `Probe Variable Regular Italic`. | **Yes.** |
-| Q26 | A weight word before `Variable` (`Probe-BoldVariable`): do not write names that silently lose it; leave the font unchanged with a warning. | **Yes.** |
-| Q27 | ID16 stays `Probe Variable` for every file of the family; ID1 stays `Probe Variable` for the upright and the italic (C4). | **Keep.** |
+**IDs** (`Variable` stays in the family name; ID16 and ID17 are always written because the vault list uses them):
+
+| File | ID1 / ID2 | ID16 | ID17 | ID4 |
+|---|---|---|---|---|
+| `Probe-Variable` | Probe Variable / Regular | Probe Variable | Upright | Probe Variable Upright |
+| `Probe-VariableItalic` | Probe Variable / Italic | Probe Variable | Italic | Probe Variable Italic |
+| `Probe-VariableWidth` | Probe Variable Width / Regular | Probe Variable | Width Upright | Probe Variable Width Upright |
+| `Probe-VariableSlope` | Probe Variable Slope / Regular | Probe Variable | Slope | Probe Variable Slope |
+| `Probe-Variable4Axis` | Probe Variable 4 Axis / Regular | Probe Variable | 4 Axis | Probe Variable 4 Axis |
+| `Probe-VariableBlackItalic` | Probe Variable Black / Italic | Probe Variable | Black Italic | Probe Variable Black Italic |
+| `ProbeDisplayCondensed-Variable3AxisItalic` | Probe Display Condensed Variable 3 Axis / Italic | Probe Display Condensed Variable | 3 Axis Italic | Probe Display Condensed Variable 3 Axis Italic |
+
+- `Regular` appears only in ID2. ID17 is the filename's style part (spaced, without `Variable`), plus `Upright` when the slope is
+  fixed and upright. ID4 is ID16 plus ID17. ID1 is ID16 plus axes and weight, without the slope.
+- Angle words other than Italic (`Oblique`, ...) are written in ID17 and ID4; ID1 carries them as naming; ID2 follows the
+  existing ID2 rule.
+
+**Slope: how the builder decides** (checked against all 5,293 variable fonts in the vault, 2026-11-25):
+
+1. A free `ital` or `slnt` axis in `fvar` (min below max): the slope is free, counted as an axis.
+2. Otherwise it is fixed. Votes: STAT (`ital` value 1 only = italic, value 0 only = upright), the italic bits (`fsSelection`
+   bit 0 or 9, `macStyle` bit 1), name cues (ID2, ID17, ID4, ID6, filename), and instance names when instances exist (all end
+   in an italic word = italic, none = upright, mixed or none = no vote). The majority decides; a tie goes to the name cue.
+3. STAT contradicting the bits and the names is a warning, not a decision (STAT said upright on about 7% of italic fonts).
+4. `italicAngle` and the caret slope are **not** used: FontFixer wrote positive angles on upright fonts until 1.5.1. They may
+   return as a signal once the library has been re-fixed.
+5. The italic word comes from the font's own name cues, `fsSelection` bit 9 means Oblique, and the fallback is `Italic`, with a warning.
+
+A weight-less font (no `wght` axis, 7% of the vault) takes its weight word from the filename, else from `usWeightClass`, with a warning.
+A variable font that cannot be classified is named with what is known and flagged; the tools do not guess.
 
 ### Area 6: The console contract (`core_console_styles.py` and each tool's summary)
 
@@ -495,8 +517,7 @@ Four summary formats, and no run exits non-zero because a file failed.
 - **Q13 withdrawn.** A shared "earlier-run folder" skip assumes too much: a file added to a folder called `_archive` or `_converted` would be treated as
   processed without checking it. The collector never skips a folder by its name. FontCatalyst keeps its own rule for now; a per-file check is the better
   design and is on the list.
-- **Q21 and area 5 deferred.** Whether a font is variable is decided by its tables (`fvar`, `STAT`; the policy already has an `is_variable` check), not by
-  its filename. Area 5 comes back as its own discussion.
+- **Area 5 decided (2026-11-25):** see "Area 5: Variable-font filenames and IDs" above; built in FontCore 0.9.0.
 - **Area 6 reopened** as a design discussion (see the proposal in the conversation): a better uniform layout system than one shared style module.
 - **Built (FontCore 0.7.0):** Q11, Q12, Q14, Q15, Q16 (one walker behind every collector function; not recursive by default; junk and hidden items skipped;
   each real file once; `on_missing` and `on_unsupported`; TTX only when a tool asks) and Q17, Q18, Q19, Q20 (collections never renamed, only `fontrenamer`

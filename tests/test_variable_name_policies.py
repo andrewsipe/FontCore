@@ -61,7 +61,7 @@ from FontCore.core_variable_filename_parser import (
             "FL Rare",
             "Text",
             None,
-            "Upright",
+            None,
             None,
             "static_aligned",
         ),
@@ -70,7 +70,7 @@ from FontCore.core_variable_filename_parser import (
             "FL Rare",
             "Text",
             None,
-            "Roman",
+            None,
             None,
             "static_aligned",
         ),
@@ -106,76 +106,22 @@ def test_parse_variable_filename_fixtures(
 @pytest.mark.parametrize(
     "filename,id1,id4,id16,id17",
     [
-        (
-            "Roslindale-Variable.ttf",
-            "Roslindale Variable",
-            "Roslindale Variable",
-            "Roslindale Variable",
-            "Regular",
-        ),
-        (
-            "RoslindaleText-Variable.ttf",
-            "Roslindale Text Variable",
-            "Roslindale Text Variable",
-            "Roslindale Variable",
-            "Text",
-        ),
+        ("Roslindale-Variable.ttf", "Roslindale Variable", "Roslindale Variable Upright", "Roslindale Variable", "Upright"),
+        ("RoslindaleText-Variable.ttf", "Roslindale Text Variable", "Roslindale Text Variable Upright", "Roslindale Text Variable", "Upright"),
         (
             "RoslindaleDisplayCondensed-Variable.ttf",
             "Roslindale Display Condensed Variable",
+            "Roslindale Display Condensed Variable Upright",
             "Roslindale Display Condensed Variable",
-            "Roslindale Variable",
-            "Display Condensed",
+            "Upright",
         ),
-        (
-            "ReaderProCondensed-Variable.ttf",
-            "Reader Pro Condensed Variable",
-            "Reader Pro Condensed Variable",
-            "Reader Pro Variable",
-            "Condensed",
-        ),
-        (
-            "ReaderPro-CondensedVariable.ttf",
-            "Reader Pro Condensed Variable",
-            "Reader Pro Condensed Variable",
-            "Reader Pro Variable",
-            "Condensed",
-        ),
-        (
-            "FL_RareText-VariableUpright.ttf",
-            "FL Rare Text Variable",
-            "FL Rare Text Variable",
-            "FL Rare Variable",
-            "Text",
-        ),
-        (
-            "FL_RareText-VariableRoman.ttf",
-            "FL Rare Text Variable",
-            "FL Rare Text Variable",
-            "FL Rare Variable",
-            "Text",
-        ),
-        (
-            "FL_Rare-VariableCursive.ttf",
-            "FL Rare Variable",
-            "FL Rare Variable Cursive",
-            "FL Rare Variable",
-            "Cursive",
-        ),
-        (
-            "FL_Rare-VariableItalic.ttf",
-            "FL Rare Variable",
-            "FL Rare Variable Italic",
-            "FL Rare Variable",
-            "Italic",
-        ),
-        (
-            "29LT_Baseet-VariableSlanted.ttf",
-            "29 LT Baseet Variable",
-            "29 LT Baseet Variable Slanted",
-            "29 LT Baseet Variable",
-            "Slanted",
-        ),
+        ("ReaderProCondensed-Variable.ttf", "Reader Pro Condensed Variable", "Reader Pro Condensed Variable Upright", "Reader Pro Condensed Variable", "Upright"),
+        ("ReaderPro-CondensedVariable.ttf", "Reader Pro Condensed Variable", "Reader Pro Condensed Variable Upright", "Reader Pro Condensed Variable", "Upright"),
+        ("FL_RareText-VariableUpright.ttf", "FL Rare Text Variable", "FL Rare Text Variable Upright", "FL Rare Text Variable", "Upright"),
+        ("FL_RareText-VariableRoman.ttf", "FL Rare Text Variable", "FL Rare Text Variable Upright", "FL Rare Text Variable", "Upright"),
+        ("FL_Rare-VariableCursive.ttf", "FL Rare Variable Cursive", "FL Rare Variable Cursive", "FL Rare Variable", "Cursive"),
+        ("FL_Rare-VariableItalic.ttf", "FL Rare Variable", "FL Rare Variable Italic", "FL Rare Variable", "Italic"),
+        ("29LT_Baseet-VariableSlanted.ttf", "29 LT Baseet Variable Slanted", "29 LT Baseet Variable Slanted", "29 LT Baseet Variable", "Slanted"),
     ],
 )
 def test_build_ids_from_fixtures(filename, id1, id4, id16, id17):
@@ -198,21 +144,15 @@ def test_legacy_and_aligned_width_normalize_same_slots():
 
 
 @pytest.mark.parametrize(
-    "filename,slope",
-    [
-        ("FL_RareText-VariableUpright.ttf", "Upright"),
-        ("FL_RareText-VariableRoman.ttf", "Roman"),
-        ("FL_RareText-Variable-Roman.ttf", "Roman"),
-    ],
+    "filename",
+    ["FL_RareText-VariableUpright.ttf", "FL_RareText-VariableRoman.ttf", "FL_RareText-Variable-Roman.ttf"],
 )
-def test_pairing_marker_elided_from_id4_and_id17(filename, slope):
+def test_upright_and_roman_markers_mean_a_fixed_upright(filename):
     slots = parse_variable_filename(filename)
     assert slots is not None
-    assert slots.slope == slope
-    assert is_elidable_vf_slope(slope)
-    assert slope not in build_id4_from_variable_slots(slots)
-    assert build_id4_from_variable_slots(slots) == "FL Rare Text Variable"
-    assert build_id17_from_variable_slots(slots) == "Text"
+    assert slots.slope is None and slots.upright is True
+    assert build_id4_from_variable_slots(slots) == "FL Rare Text Variable Upright"
+    assert build_id17_from_variable_slots(slots) == "Upright"
 
 
 def test_augure_stereo_weight_grid_invalid():
@@ -252,11 +192,11 @@ def test_filename_has_variable_marker(stem, expected):
 @pytest.mark.parametrize(
     "filename,expected_stem",
     [
-        ("ReaderProCondensed-Variable.ttf", "ReaderPro-CondensedVariable"),
-        ("ReaderPro-CondensedVariable.ttf", "ReaderPro-CondensedVariable"),
+        ("ReaderProCondensed-Variable.ttf", "ReaderProCondensed-Variable"),
+        ("ReaderPro-CondensedVariable.ttf", "ReaderProCondensed-Variable"),
         ("FL_Rare-VariableItalic.ttf", "FLRare-VariableItalic"),
-        ("FL_RareText-VariableRoman.ttf", "FLRareText-VariableRoman"),
-        ("FL_RareText-VariableUpright.ttf", "FLRareText-VariableUpright"),
+        ("FL_RareText-VariableRoman.ttf", "FLRareText-Variable"),
+        ("FL_RareText-VariableUpright.ttf", "FLRareText-Variable"),
         ("RoslindaleText-Variable.ttf", "RoslindaleText-Variable"),
     ],
 )

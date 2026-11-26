@@ -1,4 +1,4 @@
-"""`Variable` stays in ID1 (house convention, DECISIONS.md C4). ID4 and ID16 are unchanged."""
+"""`Variable` stays in ID1 (house convention, DECISIONS.md C4). From Area 5, ID16 carries the locked design and ID4 names the slope."""
 
 from __future__ import annotations
 
@@ -39,13 +39,13 @@ def test_legacy_id1_from_filename_override():
 @pytest.mark.parametrize(
     "filename, id1, id4, id16",
     [
-        ("Probe-Variable.ttf", "Probe Variable", "Probe Variable", "Probe Variable"),
+        ("Probe-Variable.ttf", "Probe Variable", "Probe Variable Upright", "Probe Variable"),
         ("Probe-VariableItalic.ttf", "Probe Variable", "Probe Variable Italic", "Probe Variable"),
-        ("ProbeDisplay-Variable.ttf", "Probe Display Variable", "Probe Display Variable", "Probe Variable"),
-        ("Probe-CondensedVariable.ttf", "Probe Condensed Variable", "Probe Condensed Variable", "Probe Variable"),
+        ("ProbeDisplay-Variable.ttf", "Probe Display Variable", "Probe Display Variable Upright", "Probe Display Variable"),
+        ("Probe-CondensedVariable.ttf", "Probe Condensed Variable", "Probe Condensed Variable Upright", "Probe Condensed Variable"),
     ],
 )
-def test_slots_id1_has_variable_and_id4_is_unchanged(filename, id1, id4, id16):
+def test_slots_id1_has_variable_and_id4_names_the_upright(filename, id1, id4, id16):
     slots = parse_variable_filename(filename)
     assert slots is not None
     assert build_id1("", None, None, None, variable_slots=slots) == id1
