@@ -235,3 +235,39 @@ def test_underscores_survive_the_font_tables_too(tmp_path):
 def test_a_filename_with_no_marker_keeps_its_family_text_too(tmp_path):
     slots = resolve_variable_slots_for_replacer(_save(make(), tmp_path, "BT_Avance-Regular.ttf"))
     assert format_variable_filename(slots) == "BT_Avance-VariableUpright"
+
+
+# ---- a leftover word after Variable is a design variant: it belongs in the family part ---------------------
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("Probe-VariableAlt", "ProbeAlt-Variable"),
+        ("Probe-VariableCut", "ProbeCut-Variable"),
+        ("Probe-VariableCutItalic", "ProbeCut-VariableItalic"),
+        ("ProbeDisplay-VariableAltUpright", "ProbeDisplayAlt-VariableUpright"),
+        ("Probe-VariableWidthSwashItalic", "ProbeSwash-VariableWidthItalic"),
+        ("ProbeAlt-Variable", "ProbeAlt-Variable"),  # already in the family part: unchanged
+    ],
+)
+def test_a_variant_word_moves_into_the_family_part(name, expected):
+    assert format_variable_filename(parse_variable_filename(name + ".ttf")) == expected
+
+
+def test_the_variant_is_in_the_family_ids_not_the_style_ids():
+    slots = parse_variable_filename("Probe-VariableCutItalic.ttf")
+    assert build_id16_from_variable_slots(slots) == "Probe Cut Variable"
+    assert build_id1_from_variable_slots(slots) == "Probe Cut Variable"
+    assert build_id17_from_variable_slots(slots) == "Italic"
+    assert build_id4_from_variable_slots(slots) == "Probe Cut Variable Italic"
+
+
+@pytest.mark.parametrize("word", ["Rotalic", "Tiltalic", "Corsiva"])
+def test_these_designer_words_are_slopes_not_variants(word):
+    assert parse_variable_filename(f"Probe-Variable{word}.ttf").slope == word
+
+
+def test_a_variant_word_survives_the_font_tables(tmp_path):
+    slots = resolve_variable_slots_for_replacer(_save(make(), tmp_path, "Probe-VariableAlt.ttf"))
+    assert format_variable_filename(slots) == "ProbeAlt-VariableUpright"
+    assert build_id16_from_variable_slots(slots) == "Probe Alt Variable"

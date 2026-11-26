@@ -457,6 +457,9 @@ which axes are free; the filename supplies the family, the locked words, and the
   No axis counts and no `Slope` word.
 - **Collection:** a font with all four registered axes free (weight, width, optical size, slope) is a collection or super family:
   `Collection` goes in the family name (`ProbeCollection-Variable`), and the axes after the hyphen are only `Custom` if there is one.
+- **Design variants** (Alt, Cut, Swash, Capitals, Layer, Inline: fixed alternative designs of a family, not axes) are part of the
+  family: any word after `Variable` that is not an axis, weight or slope word moves before the hyphen (`ProbeAlt-Variable`, `ProbeCut-VariableItalic`)
+  and into ID16/ID1 ("Probe Alt Variable"). `Alt` is not special-cased (surveyed: 19 of 5,284 vault files have such a word).
 - **Weight** appears only when it is locked and the filename already says so (`-VariableBlack`). It is never derived from `usWeightClass`
   (surveyed: 81% of weight-less fonts say 400 and some are plain wrong).
 - Examples: `Probe-Variable` (weight + free slope), `Probe-VariableUpright`, `Probe-VariableItalic`, `Probe-VariableWidth`,
