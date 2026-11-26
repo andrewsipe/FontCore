@@ -146,3 +146,34 @@ def test_the_locked_design_stays_in_the_family_part(tmp_path):
 def test_a_missing_file_falls_back_to_the_filename_alone():
     slots = resolve_variable_slots_for_replacer("/nonexistent/Probe-VariableItalic.ttf")
     assert slots is not None and slots.slope == "Italic"
+
+
+# ---- the family part of the filename is kept as written ---------------------------------------------------
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("BT_Avance-Variable", "BT_Avance-Variable"),
+        ("00_Quatorze-Variable", "00_Quatorze-Variable"),
+        ("OCR_010204-Variable", "OCR_010204-Variable"),
+        ("FL_RareText-VariableUpright", "FL_RareText-Variable"),
+        ("FutterGrotesk_UT-VariableItalic", "FutterGrotesk_UT-VariableItalic"),
+        ("Workhorse_ScriptStencilCondensed-Variable", "Workhorse_ScriptStencilCondensed-Variable"),
+        # a width that sat after the hyphen moves into the family part, after the family as written
+        ("BT_Avance-CondensedVariable", "BT_AvanceCondensed-Variable"),
+        ("Probe Two-Variable", "ProbeTwo-Variable"),  # spaces cannot stay in a house-form stem
+    ],
+)
+def test_the_family_part_keeps_its_underscores(name, expected):
+    assert format_variable_filename(parse_variable_filename(name + ".ttf")) == expected
+
+
+def test_underscores_survive_the_font_tables_too(tmp_path):
+    slots = resolve_variable_slots_for_replacer(_save(make(axes=FOUR), tmp_path, "00_Quatorze-Variable.ttf"))
+    assert format_variable_filename(slots) == "00_Quatorze-Variable4Axis"
+    assert build_id16_from_variable_slots(slots) == "00 Quatorze Variable"
+
+
+def test_a_filename_with_no_marker_keeps_its_family_text_too(tmp_path):
+    slots = resolve_variable_slots_for_replacer(_save(make(), tmp_path, "BT_Avance-Regular.ttf"))
+    assert format_variable_filename(slots) == "BT_Avance-Variable"

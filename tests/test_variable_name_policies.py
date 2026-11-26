@@ -194,9 +194,9 @@ def test_filename_has_variable_marker(stem, expected):
     [
         ("ReaderProCondensed-Variable.ttf", "ReaderProCondensed-Variable"),
         ("ReaderPro-CondensedVariable.ttf", "ReaderProCondensed-Variable"),
-        ("FL_Rare-VariableItalic.ttf", "FLRare-VariableItalic"),
-        ("FL_RareText-VariableRoman.ttf", "FLRareText-Variable"),
-        ("FL_RareText-VariableUpright.ttf", "FLRareText-Variable"),
+        ("FL_Rare-VariableItalic.ttf", "FL_Rare-VariableItalic"),
+        ("FL_RareText-VariableRoman.ttf", "FL_RareText-Variable"),
+        ("FL_RareText-VariableUpright.ttf", "FL_RareText-Variable"),
         ("RoslindaleText-Variable.ttf", "RoslindaleText-Variable"),
     ],
 )
