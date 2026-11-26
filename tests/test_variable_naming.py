@@ -80,16 +80,26 @@ def test_the_designer_s_slope_spelling_is_kept():
 
 
 def test_the_old_slope_and_count_words_are_read_and_dropped():
+    # (Regular is no longer one of the old words: see the locked-Regular tests below)
     for old, new in (("Probe-VariableSlope", "Probe-Variable"), ("Probe-Variable3AxisItalic", "Probe-VariableItalic"),
                      ("Probe-Variable2Axis", "Probe-Variable"), ("Probe-Variable4Axes", "Probe-Variable")):
         assert format_variable_filename(parse_variable_filename(old + ".ttf")) == new, old
 
 
-def test_regular_and_normal_after_variable_with_no_axes_are_the_old_marker_and_vanish():
-    for name in ("Probe-VariableRegular", "Probe-VariableNormal"):
-        s = parse_variable_filename(name + ".ttf")
-        assert s.weight is None and s.slope is None, name
-        assert format_variable_filename(s) == "Probe-Variable"
+def test_a_regular_or_normal_after_variable_is_read_as_a_weight_word():
+    for name, weight in (("Probe-VariableRegular", "Regular"), ("Probe-VariableNormal", "Normal")):
+        assert parse_variable_filename(name + ".ttf").weight == weight
+
+
+def test_a_regular_weight_word_is_dropped_when_the_font_has_a_free_weight_axis(tmp_path):
+    slots = resolve_variable_slots_for_replacer(_save(make(), tmp_path, "Probe-VariableRegular.ttf"))
+    assert format_variable_filename(slots) == "Probe-VariableUpright"
+
+
+def test_a_locked_regular_is_kept_so_it_is_not_taken_for_a_free_weight(tmp_path):
+    font = make(axes=(("wdth", 75, 100, 125),))
+    assert format_variable_filename(resolve_variable_slots_for_replacer(_save(font, tmp_path, "Probe-VariableRegular.ttf"))) == "Probe-VariableWidthRegularUpright"
+    assert format_variable_filename(resolve_variable_slots_for_replacer(_save(font, tmp_path, "Probe-VariableLight.ttf"))) == "Probe-VariableWidthLightUpright"
 
 
 def test_roman_and_upright_both_mean_a_fixed_upright():
