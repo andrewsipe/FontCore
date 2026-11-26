@@ -60,23 +60,45 @@ def test_weight_only():
     assert t.axes_word is None
 
 
-@pytest.mark.parametrize(
-    "extra,word",
-    [(("wdth", 75, 100, 125), "Width"), (("opsz", 8, 14, 144), "OpticalSize"), (("slnt", -12, 0, 0), "Slope"), (("ital", 0, 0, 1), "Slope")],
-)
-def test_weight_plus_one_common_axis_is_named(extra, word):
+@pytest.mark.parametrize("extra,word", [(("wdth", 75, 100, 125), "Width"), (("opsz", 8, 14, 144), "OpticalSize")])
+def test_weight_plus_one_registered_axis_is_named(extra, word):
+    assert traits(make(axes=(("wght", 100, 400, 900), extra))).axes_word == word
+
+
+@pytest.mark.parametrize("extra", [("slnt", -12, 0, 0), ("ital", 0, 0, 1)])
+def test_a_free_slope_axis_is_the_baseline_and_has_no_word(extra):
     t = traits(make(axes=(("wght", 100, 400, 900), extra)))
-    assert t.axes_word == word
+    assert t.axes_word is None and t.slope == "free"
 
 
-def test_weight_plus_one_custom_axis_is_a_count_never_a_name():
-    assert traits(make(axes=(("wght", 100, 400, 900), ("GRAD", -50, 0, 100)))).axes_word == "2Axis"
+def test_any_unregistered_axis_is_custom_however_many():
+    assert traits(make(axes=(("wght", 100, 400, 900), ("GRAD", -50, 0, 100)))).axes_word == "Custom"
+    many = (("wght", 100, 400, 900), ("GRAD", -50, 0, 100), ("XTRA", 0, 0, 10), ("YOPQ", 0, 0, 10))
+    assert traits(make(axes=many)).axes_word == "Custom"
 
 
-def test_three_or_more_axes_are_counted_including_weight_and_a_free_slope():
-    axes = (("wght", 100, 400, 900), ("wdth", 75, 100, 125), ("slnt", -12, 0, 0))
+def test_registered_extras_come_in_a_fixed_order_then_custom():
+    axes = (("wght", 100, 400, 900), ("GRAD", -50, 0, 100), ("opsz", 8, 14, 144), ("wdth", 75, 100, 125))
     t = traits(make(axes=axes))
-    assert t.axes_word == "3Axis" and t.slope == "free"
+    assert t.axes_word == "WidthOpticalSizeCustom"
+
+
+def test_all_four_registered_axes_free_is_a_collection_with_no_axis_words():
+    axes = (("wght", 100, 400, 900), ("wdth", 75, 100, 125), ("opsz", 8, 14, 144), ("slnt", -12, 0, 0))
+    t = traits(make(axes=axes))
+    assert t.collection and t.axes_word is None and t.slope == "free"
+
+
+def test_a_collection_with_a_custom_axis_keeps_custom():
+    axes = (("wght", 100, 400, 900), ("wdth", 75, 100, 125), ("opsz", 8, 14, 144), ("ital", 0, 0, 1), ("GRAD", -50, 0, 100))
+    t = traits(make(axes=axes))
+    assert t.collection and t.axes_word == "Custom"
+
+
+def test_three_registered_axes_with_a_locked_slope_is_not_a_collection():
+    axes = (("wght", 100, 400, 900), ("wdth", 75, 100, 125), ("opsz", 8, 14, 144))
+    t = traits(make(axes=axes))
+    assert not t.collection and t.axes_word == "WidthOpticalSize"
 
 
 def test_a_locked_axis_in_fvar_is_not_free():
@@ -84,15 +106,10 @@ def test_a_locked_axis_in_fvar_is_not_free():
     assert t.free_axes == ("wght",) and t.axes_word is None
 
 
-def test_a_regular_weight_class_without_a_weight_axis_adds_no_word():
-    t = traits(make(axes=(("wdth", 75, 100, 125),), weight_class=400))
-    assert not t.weight_free and t.axes_word == "Width" and t.locked_weight is None and not t.warnings
-
-
-def test_no_weight_axis_means_weight_is_locked_and_comes_from_the_weight_class():
-    t = traits(make(axes=(("wdth", 75, 100, 125),), weight_class=900))
-    assert not t.weight_free and t.axes_word == "Width" and t.locked_weight == "Black"
-    assert any("weight" in w.lower() for w in t.warnings)
+def test_no_weight_axis_is_named_by_the_same_rules_and_never_gets_a_derived_weight_word():
+    t = traits(make(axes=(("wdth", 75, 100, 125),), weight_class=100))
+    assert not t.weight_free and t.axes_word == "Width" and t.locked_weight is None
+    assert any("weight axis" in w.lower() for w in t.warnings)
 
 
 # ---- slope -------------------------------------------------------------------------------------------------
@@ -158,3 +175,22 @@ def test_italic_angle_is_never_a_vote():
     font["post"].italicAngle = -12.0
     font["hhea"].caretSlopeRun = 213
     assert traits(font).slope == "upright"
+
+
+# ---- the designer's slope word -------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("instances,word", [(("Light Backslant", "Bold Backslant"), "Backslant"), (("Light Reclined", "Bold Reclined"), "Reclined"), (("Light Slant", "Bold Slant"), "Slant")])
+def test_the_word_comes_from_the_instance_suffix_in_the_designer_s_spelling(instances, word):
+    t = traits(make(style="Regular", italic_bits=True, instances=instances))
+    assert t.slope == "italic" and t.slope_word == word
+
+
+def test_the_instance_suffix_beats_a_different_word_in_the_names():
+    t = traits(make(style="Italic", italic_bits=True, instances=("Light Oblique", "Bold Oblique")))
+    assert t.slope_word == "Oblique"
+
+
+def test_the_name_cue_keeps_the_designer_s_spelling_too():
+    assert traits(make(style="Slant", italic_bits=True)).slope_word == "Slant"
+    assert traits(make(style="Backslant", italic_bits=True)).slope_word == "Backslant"
+    assert traits(make(style="Reclined", italic_bits=True)).slope_word == "Reclined"
