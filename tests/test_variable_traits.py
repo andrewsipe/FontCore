@@ -198,43 +198,20 @@ def test_the_name_cue_keeps_the_designer_s_spelling_too():
     assert traits(make(style="Reclined", italic_bits=True)).slope_word == "Reclined"
 
 
-# ---- a locked weight comes from the names, never from usWeightClass; Regular is not a weight word ------------------
+# ---- the names never supply a weight: only the filename can state one ----------------------------------------------
 
 WIDTH_ONLY = (("wdth", 75, 100, 125),)
 
 
-@pytest.mark.parametrize("kwargs,word", [
-    (dict(id17="Bold"), "Bold"),
-    (dict(style="Light"), "Light"),
-    (dict(style="Regular", instances=("Black", "Black")), "Black"),
-    (dict(style="Regular", id17="Extra Light"), "Extralight"),
-    (dict(style="Regular", id17="SemiBold"), "Semibold"),
-])
-def test_a_weight_less_font_takes_its_locked_weight_from_its_names(kwargs, word):
-    assert traits(make(axes=WIDTH_ONLY, **kwargs)).locked_weight == word
+@pytest.mark.parametrize("kwargs", [dict(id17="Black"), dict(style="Light"), dict(id17="Regular"), dict(instances=("Bold", "Bold")), dict(weight_class=900)])
+def test_a_font_with_no_weight_axis_gets_no_weight_word_from_its_names_or_weight_class(kwargs):
+    # Danfo says Regular in ID17 and looks Black: the name table is not evidence of a weight
+    t = traits(make(axes=WIDTH_ONLY, **kwargs))
+    assert t.locked_weight is None and not t.weight_free
 
 
-def test_a_locked_regular_is_a_weight_word_when_a_name_states_it():
-    assert traits(make(axes=WIDTH_ONLY, style="Regular", id17="Regular")).locked_weight == "Regular"
-    assert traits(make(axes=WIDTH_ONLY, style="Regular", instances=("Regular", "Regular"))).locked_weight == "Regular"
-
-
-def test_id2_saying_regular_is_not_evidence_of_a_weight():
-    # ID2 is Regular for nearly every font that is not Bold: it names the RIBBI slot, not a weight
-    assert traits(make(axes=WIDTH_ONLY, style="Regular")).locked_weight is None
-
-
-@pytest.mark.parametrize("label", ["Normal", "Roman", "Italic", "Upright"])
-def test_normal_roman_and_slope_words_are_not_a_locked_weight(label):
-    assert traits(make(axes=WIDTH_ONLY, style="Regular", id17=label)).locked_weight is None
-
-
-def test_the_weight_class_is_never_the_source():
-    assert traits(make(axes=WIDTH_ONLY, style="Regular", weight_class=900)).locked_weight is None
-
-
-def test_a_font_with_a_weight_axis_has_no_locked_weight():
-    assert traits(make(id17="Bold")).locked_weight is None
+def test_a_weight_less_font_says_so_in_a_warning_for_a_report():
+    assert any("weight axis" in w.lower() for w in traits(make(axes=WIDTH_ONLY)).warnings)
 
 
 # ---- a font with no free axes at all is static in effect -----------------------------------------------------

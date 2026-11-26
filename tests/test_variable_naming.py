@@ -212,59 +212,54 @@ def test_the_designer_s_slope_word_survives_into_the_filename(tmp_path):
     assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-VariableBackslant"
 
 
-# ---- fonts with no weight axis: the weight is locked, so it goes in the family ---------------------------------
+# ---- fonts with no weight axis: only a weight the filename states is written, in the family ---------------------
 
-def test_a_locked_weight_from_the_names_goes_in_the_family(tmp_path):
-    font = make(axes=(("wdth", 75, 100, 125), ("slnt", -12, 0, 0)), style="Light")
-    slots = resolve(font, tmp_path, "AugureStereo-Variable.ttf")
+def test_a_weight_the_filename_states_goes_in_the_family(tmp_path):
+    font = make(axes=(("wdth", 75, 100, 125), ("slnt", -12, 0, 0)))
+    slots = resolve(font, tmp_path, "AugureStereo-VariableLight.ttf")
     assert stem(slots) == "AugureStereoLight-WidthVariable"
     assert build_id16_from_variable_slots(slots) == "Augure Stereo Light Variable"
     assert build_id17_from_variable_slots(slots) == "Width Upright Italic"
 
 
-def test_a_locked_weight_with_a_locked_upright_slope(tmp_path):
-    font = make(axes=WIDTH_ONLY, style="Light")
-    assert stem(resolve(font, tmp_path, "AugureStereo-Variable.ttf")) == "AugureStereoLight-WidthVariableUpright"
-
-
-def test_a_locked_weight_already_in_the_family_is_not_written_twice(tmp_path):
-    font = make(axes=WIDTH_ONLY, style="Light")
-    assert stem(resolve(font, tmp_path, "AugureStereoLight-Variable.ttf")) == "AugureStereoLight-WidthVariableUpright"
-
-
-def test_a_weight_less_font_with_only_regular_gets_the_weight_placeholder(tmp_path):
-    font = make(axes=WIDTH_ONLY, style="Regular", weight_class=100)
-    slots = resolve(font, tmp_path, "Parch-Variable.ttf")
-    assert stem(slots) == "ParchWeight-WidthVariableUpright"
-    assert build_id16_from_variable_slots(slots) == "Parch Weight Variable"
-
-
-def test_a_locked_regular_is_written_so_it_is_not_taken_for_a_free_weight(tmp_path):
-    font = make(axes=WIDTH_ONLY, id17="Regular")
-    slots = resolve(font, tmp_path, "AugureStereo-Variable.ttf")
+def test_a_locked_regular_the_filename_states_is_written(tmp_path):
+    font = make(axes=WIDTH_ONLY)
+    slots = resolve(font, tmp_path, "AugureStereo-VariableRegular.ttf")
     assert stem(slots) == "AugureStereoRegular-WidthVariableUpright"
     assert build_id16_from_variable_slots(slots) == "Augure Stereo Regular Variable"
     free = resolve(make(axes=(("wght", 100, 400, 900), ("wdth", 75, 100, 125))), tmp_path, "AugureStereo-Variable.ttf")
     assert stem(free) == "AugureStereo-WidthVariableUpright"  # a free weight stays unmarked: the two differ
 
 
-def test_a_regular_in_the_filename_is_kept_when_the_weight_is_locked(tmp_path):
-    font = make(axes=WIDTH_ONLY, style="Regular")
-    assert stem(resolve(font, tmp_path, "Probe-VariableWidthRegular.ttf")) == "ProbeRegular-WidthVariableUpright"
+def test_a_weight_in_a_plain_filename_counts_when_the_font_has_no_weight_axis(tmp_path):
+    font = make(axes=(("GRAD", -50, 0, 100),), style="Italic", italic_bits=True)
+    assert stem(resolve(font, tmp_path, "Lacano-Regular.ttf")) == "LacanoRegular-CustomVariableItalic"
 
 
-def test_a_regular_in_the_filename_is_dropped_when_the_weight_is_free(tmp_path):
-    assert stem(resolve(make(), tmp_path, "Probe-VariableRegular.ttf")) == "Probe-VariableUpright"
+def test_a_weight_in_a_plain_filename_is_ignored_when_the_font_has_a_free_weight_axis(tmp_path):
+    assert stem(resolve(make(), tmp_path, "Lacano-Regular.ttf")) == "Lacano-VariableUpright"
 
 
-def test_a_slope_only_font_needs_no_slope_word_only_the_weight_in_the_family(tmp_path):
+def test_a_weight_less_font_with_no_weight_in_its_filename_gets_none_and_no_placeholder(tmp_path):
+    # Danfo: custom axis only, ID17 says Regular, usWeightClass says 100, and the font looks Black: none of that is used
+    font = make(axes=(("DCAY", 0, 0, 900),), style="Regular", id17="Regular", weight_class=100)
+    slots = resolve(font, tmp_path, "Danfo-Variable.ttf")
+    assert stem(slots) == "Danfo-CustomVariableUpright"
+    assert build_id16_from_variable_slots(slots) == "Danfo Variable"
+
+
+def test_a_slope_only_font_with_no_weight_word_is_plain_variable(tmp_path):
     font = make(axes=(("slnt", -12, 0, 0),), style="Regular")
-    assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "ProbeWeight-Variable"
+    assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-Variable"
 
 
-def test_a_weight_word_in_the_filename_is_used_when_the_names_do_not_state_one(tmp_path):
+def test_a_weight_word_in_the_filename_is_used_when_the_font_has_no_weight_axis(tmp_path):
     font = make(axes=WIDTH_ONLY, style="Regular")
     assert stem(resolve(font, tmp_path, "Probe-VariableWidthBlack.ttf")) == "ProbeBlack-WidthVariableUpright"
+
+
+def test_a_locked_weight_already_in_the_family_is_not_written_twice(tmp_path):
+    assert stem(resolve(make(axes=WIDTH_ONLY), tmp_path, "AugureStereoLight-Variable.ttf")) == "AugureStereoLight-WidthVariableUpright"
 
 
 def test_a_weight_word_in_the_filename_is_dropped_when_the_font_has_a_free_weight_axis(tmp_path):

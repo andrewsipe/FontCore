@@ -458,12 +458,12 @@ words and the designer's slope word. Variable fonts have their own name engine (
   There is no `Slope` word and there are no axis counts.
 - **Collection:** a font with all four registered axes free (weight, width, optical size, slope) is a collection or super family:
   `ProbeCollection-Variable`.
-- **Weight words:** a locked weight is written in the family (`AugureStereoLight-WidthVariable`). It comes from the filename or, for a font
-  with no weight axis, from its name table (ID17, then ID2 except `Regular`, then instance names, then a STAT label), never from `usWeightClass`.
-  **`Regular` is a weight word here**: a locked Regular is a different font from a free weight, so `AugureStereoRegular-WidthVariable` is not
-  `AugureStereo-WidthVariable`. `Normal` and `Roman` are not read as weights, and ID2 saying `Regular` is not evidence (it names the RIBBI slot).
-  A font with no weight axis and no weight word in its names gets the placeholder `Weight` in the family (`ParchWeight-CustomVariableUpright`):
-  a locked weight nobody has named yet, for the tools to ask about.
+- **Weight words:** a locked weight is written in the family (`AugureStereoLight-WidthVariable`), **only when the filename already states it**.
+  The name table and `usWeightClass` are not evidence of a weight (Danfo says Regular in ID17 and looks Black; `usWeightClass` is 400 on 81% of
+  weight-less fonts). **`Regular` is a weight word here**: a locked Regular is a different font from a free weight, so
+  `AugureStereoRegular-WidthVariable` is not `AugureStereo-WidthVariable`. `Normal` is not read as a weight. A weight-less font whose filename
+  states no weight gets no weight word and no placeholder (`Danfo-CustomVariableUpright`): it reads as a free weight, which the tools report
+  as a warning for an optional review list, never as a prompt per font.
 - **A font with no free axes** at all is static in effect and is named as a static font, with a flag.
 - Examples: `Probe-Variable`, `Probe-VariableUpright`, `Probe-VariableItalic`, `Probe-WidthVariable`, `Probe-WidthVariableItalic`,
   `AugureStereoLight-WidthVariable`, `AugureStereoLight-WidthVariableUpright`, `ProbeCondensed-VariableItalic`, `ProbeDisplay-Variable`,
@@ -497,8 +497,7 @@ words and the designer's slope word. Variable fonts have their own name engine (
 4. `italicAngle` and the caret slope are **not** used: FontFixer wrote positive angles on upright fonts until 1.5.1.
 5. The slope word comes from the named instances' trailing word first, then the name cues, then `fsSelection` bit 9 (Oblique), then `Italic` with a warning.
 
-**Plausible, not exact:** a font with no weight axis and no weight word in its names (the placeholder) reads as locked-but-unnamed; tools should prompt for
-the name. Reading the names finds a weight word (most often `Regular`) for about three quarters of weight-less fonts; the rest get the placeholder.
+**Plausible, not exact:** a font with no weight axis and no weight word in its filename (about 98% of the 387 weight-less fonts) reads as free-weight.
 Named instances are never used for ID17: the default instance would give two files in 23% of multi-file families the same ID16 + ID17.
 
 ### Area 6: The console contract (`core_console_styles.py` and each tool's summary)
