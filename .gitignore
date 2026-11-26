@@ -85,3 +85,6 @@ temp_font_metadata.tmp
 
 # Generated URL list (not part of the project)
 raw_github_urls.txt
+
+# survey output holds library names; never commit it
+survey_out/
