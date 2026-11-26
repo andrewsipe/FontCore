@@ -73,3 +73,11 @@ def test_the_fvar_table_decides_whether_a_font_is_variable_even_without_stat(tmp
     assert "STAT" not in font
     assert is_variable_font(font) and is_variable_font_binary(font)
     assert not is_variable_font_binary(font, strict=True)  # the spec-compliance question stays available
+
+
+def test_the_resolver_can_be_given_the_original_filename_when_the_file_sits_under_a_temp_name(tmp_path):
+    from FontCore.core_variable_filename_parser import format_variable_filename, resolve_variable_slots
+
+    path = save(make(axes=(("wght", 100, 400, 900), ("wdth", 75, 100, 125))), tmp_path, "_tmp_0123456789ab.ttf")
+    slots = resolve_variable_slots(path, name="BT_Avance-Variable.ttf")
+    assert format_variable_filename(slots) == "BT_Avance-WidthVariableUpright"
