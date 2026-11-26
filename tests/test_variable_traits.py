@@ -84,6 +84,11 @@ def test_a_locked_axis_in_fvar_is_not_free():
     assert t.free_axes == ("wght",) and t.axes_word is None
 
 
+def test_a_regular_weight_class_without_a_weight_axis_adds_no_word():
+    t = traits(make(axes=(("wdth", 75, 100, 125),), weight_class=400))
+    assert not t.weight_free and t.axes_word == "Width" and t.locked_weight is None and not t.warnings
+
+
 def test_no_weight_axis_means_weight_is_locked_and_comes_from_the_weight_class():
     t = traits(make(axes=(("wdth", 75, 100, 125),), weight_class=900))
     assert not t.weight_free and t.axes_word == "Width" and t.locked_weight == "Black"

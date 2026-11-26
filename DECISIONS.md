@@ -487,7 +487,7 @@ which axes are free; the filename only supplies family, locked words, and which 
    return as a signal once the library has been re-fixed.
 5. The italic word comes from the font's own name cues, `fsSelection` bit 9 means Oblique, and the fallback is `Italic`, with a warning.
 
-A weight-less font (no `wght` axis, 7% of the vault) takes its weight word from the filename, else from `usWeightClass`, with a warning.
+A weight-less font (no `wght` axis, 7% of the vault) takes its weight word from the filename, else from `usWeightClass` with a warning; a Regular weight class adds no word (decided 2026-11-25).
 A variable font that cannot be classified is named with what is known and flagged; the tools do not guess.
 
 ### Area 6: The console contract (`core_console_styles.py` and each tool's summary)
