@@ -546,41 +546,11 @@ def clean_variable_family_name(family: str) -> str:
 def resolve_variable_slots_for_replacer(filepath: str):
     """Variable-font slots for the NameID policy builders, or None for a static font.
 
-    The font's tables decide whether it is variable, which axes are free and the slope (DECISIONS.md, Area 5); the
-    filename supplies the family and the locked optical size, width and weight. A file that cannot be opened falls
-    back to its filename alone.
+    The font's tables decide (DECISIONS.md, Area 5); see ``core_variable_filename_parser.resolve_variable_slots``.
     """
-    from FontCore.core_variable_filename_parser import (
-        apply_variable_traits,
-        slots_from_plain_filename,
-        slots_usable_for_policy,
-        variable_slots_from_path,
-    )
-    from FontCore.core_variable_traits import analyze_variable_traits
+    from FontCore.core_variable_filename_parser import resolve_variable_slots
 
-    basename = os.path.basename(filepath)
-    traits = None
-    try:
-        from fontTools.ttLib import TTFont
-
-        font = TTFont(filepath, lazy=True, fontNumber=0, recalcTimestamp=False)
-        try:
-            traits = analyze_variable_traits(font, filename=basename)
-        finally:
-            font.close()
-    except Exception:
-        traits = None
-
-    slots = variable_slots_from_path(filepath)
-    if traits is None:
-        return slots if slots_usable_for_policy(slots) else None
-    if not traits.is_variable:
-        return None
-    if slots is None:
-        slots = slots_from_plain_filename(basename)
-    if not slots_usable_for_policy(slots):
-        return None
-    return apply_variable_traits(slots, traits)
+    return resolve_variable_slots(filepath)
 
 
 def run_workflow(

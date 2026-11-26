@@ -452,7 +452,42 @@ def slots_usable_for_policy(slots: Optional[VariableFilenameSlots]) -> bool:
     return slots.is_valid
 
 
+def resolve_variable_slots(filepath: str) -> Optional[VariableFilenameSlots]:
+    """Variable-font slots for a font file, or None for a static font.
+
+    The font's tables decide whether it is variable, which axes are free and the slope (DECISIONS.md, Area 5); the
+    filename supplies the family and the locked optical size, width and weight. A file that cannot be opened falls
+    back to its filename alone.
+    """
+    from FontCore.core_variable_traits import analyze_variable_traits
+
+    basename = os.path.basename(filepath)
+    traits = None
+    try:
+        from fontTools.ttLib import TTFont
+
+        font = TTFont(filepath, lazy=True, fontNumber=0, recalcTimestamp=False)
+        try:
+            traits = analyze_variable_traits(font, filename=basename)
+        finally:
+            font.close()
+    except Exception:
+        traits = None
+
+    slots = variable_slots_from_path(filepath)
+    if traits is None:
+        return slots if slots_usable_for_policy(slots) else None
+    if not traits.is_variable:
+        return None
+    if slots is None:
+        slots = slots_from_plain_filename(basename)
+    if not slots_usable_for_policy(slots):
+        return None
+    return apply_variable_traits(slots, traits)
+
+
 __all__ = [
+    "resolve_variable_slots",
     "apply_variable_traits",
     "slots_from_plain_filename",
     "VariableFilenameDialect",
