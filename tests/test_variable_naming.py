@@ -233,7 +233,13 @@ def test_a_locked_regular_the_filename_states_is_written(tmp_path):
 
 def test_a_weight_in_a_plain_filename_counts_when_the_font_has_no_weight_axis(tmp_path):
     font = make(axes=(("GRAD", -50, 0, 100),), style="Italic", italic_bits=True)
-    assert stem(resolve(font, tmp_path, "Lacano-Regular.ttf")) == "LacanoRegular-CustomVariableItalic"
+    assert stem(resolve(font, tmp_path, "Lacano-Light.ttf")) == "LacanoLight-CustomVariableItalic"
+
+
+def test_a_plain_regular_is_the_default_style_word_not_a_locked_weight(tmp_path):
+    font = make(axes=(("GRAD", -50, 0, 100),), style="Italic", italic_bits=True)
+    assert stem(resolve(font, tmp_path, "Lacano-Regular.ttf")) == "Lacano-CustomVariableItalic"
+    assert stem(resolve(font, tmp_path, "Lacano-Normal.ttf")) == "Lacano-CustomVariableItalic"
 
 
 def test_a_weight_in_a_plain_filename_is_ignored_when_the_font_has_a_free_weight_axis(tmp_path):
@@ -308,6 +314,9 @@ def test_a_missing_file_falls_back_to_the_filename_alone():
         ("Probe-VariableItalic (2)", "Probe-VariableItalic"),
         ("Probe-Variable~001", "Probe-Variable"),
         ("Probe-Variable-copy", "Probe-Variable"),
+        ("Probe-Variable 2", "Probe-Variable"),  # a Finder copy: space and a number
+        ("Probe-VariableItalic 2", "Probe-VariableItalic"),
+        ("Probe2-Variable", "Probe2-Variable"),  # a number that belongs to the family name is untouched
         ("ProbeCopy-Variable", "ProbeCopy-Variable"),  # a family that really is called Copy is untouched
     ],
 )
