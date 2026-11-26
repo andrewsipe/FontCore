@@ -296,3 +296,20 @@ def test_a_missing_file_falls_back_to_the_filename_alone():
 
     slots = resolve_variable_slots_for_replacer("/nonexistent/Probe-VariableItalic.ttf")
     assert slots is not None and slots.slope == "Italic"
+
+
+# ---- copy suffixes are not design variants -----------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("Probe-Variable copy", "Probe-Variable"),
+        ("Probe-Variable Copy 2", "Probe-Variable"),
+        ("Probe-VariableItalic (2)", "Probe-VariableItalic"),
+        ("Probe-Variable~001", "Probe-Variable"),
+        ("Probe-Variable-copy", "Probe-Variable"),
+        ("ProbeCopy-Variable", "ProbeCopy-Variable"),  # a family that really is called Copy is untouched
+    ],
+)
+def test_copy_suffixes_are_dropped_not_made_a_variant(name, expected):
+    assert format_variable_filename(parse_variable_filename(name + ".ttf")) == expected
