@@ -212,6 +212,17 @@ def test_the_designer_s_slope_word_survives_into_the_filename(tmp_path):
     assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-VariableBackslant"
 
 
+def test_the_slope_word_in_the_filename_beats_the_italic_in_id2_and_the_instances(tmp_path):
+    # QualionNeue: an Upright, Italic and Oblique set whose ID2 and ID17 all say Italic.
+    font = make(style="Italic", italic_bits=True, id17="Italic")
+    assert stem(resolve(font, tmp_path, "Probe-VariableOblique.ttf")) == "Probe-VariableOblique"
+    # MGFSans: the instances list both Italic and Heavy Slanted; the tie must not go to Italic.
+    font = make(style="Italic", italic_bits=True, instances=("Italic", "Heavy Slanted"))
+    assert stem(resolve(font, tmp_path, "Probe-VariableSlanted.ttf")) == "Probe-VariableSlanted"
+    # no word in the filename: the tables still say Italic
+    assert stem(resolve(font, tmp_path, "Probe-VariableItalic.ttf")).endswith("Italic")
+
+
 # ---- fonts with no weight axis: only a weight the filename states is written, in the family ---------------------
 
 def test_a_weight_the_filename_states_goes_in_the_family(tmp_path):
