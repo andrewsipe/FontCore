@@ -251,3 +251,12 @@ def test_a_font_with_every_axis_pinned_is_called_out(tmp_path):
     free = make(axes=(("wght", 100, 400, 900),))
     free.save(tmp_path / "Free-Variable.ttf")
     assert pinned_axes_note(str(tmp_path / "Free-Variable.ttf")) is None
+
+
+def test_stat_and_an_upright_filename_beat_stale_italic_flags_and_names():
+    font = make(style="Italic", italic_bits=True, id17="Italic", stat_ital=(0, "Roman"), instances=("Light", "Bold"))
+    t = analyze_variable_traits(font, "Baudricourt-VariableUpright.ttf")
+    assert t.slope == "upright" and t.slope_word is None
+    assert any("Upright filename" in w for w in t.warnings)
+    # without the Upright filename the earlier rule stands: the flags and names win over STAT
+    assert analyze_variable_traits(font, "Baudricourt-Variable.ttf").slope == "italic"
