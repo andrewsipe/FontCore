@@ -1,3 +1,3 @@
 """Shared font-processing utilities for Good Font Scripts tools."""
 
-__version__ = "0.11.8"
+__version__ = "0.11.9"

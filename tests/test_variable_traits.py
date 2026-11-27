@@ -25,7 +25,7 @@ def make(axes=(("wght", 100, 400, 900),), *, style="Regular", italic_bits=False,
     fb.setupPost()
     if axes:
         fb.setupFvar([(t, lo, d, hi, t) for t, lo, d, hi in axes], [
-            {"location": {axes[0][0]: axes[0][2]}, "stylename": name} for name in instances
+            {"location": {t: d for t, lo, d, hi in axes}, "stylename": name} for name in instances
         ])
     font = fb.font
     if id17:
@@ -234,3 +234,9 @@ def test_instances_that_do_not_end_in_a_slope_word_do_not_vote_upright():
 def test_italic_bits_and_names_win_over_upright_looking_instances_and_stat_without_a_tie():
     t = traits(make(style="Italic", italic_bits=True, stat_ital=(0, "Roman"), instances=("Light", "Bold")))
     assert t.slope == "italic" and not any("tied" in w for w in t.warnings)
+
+
+def test_the_filename_slope_word_decides_the_traits_word():
+    font = make(style="Italic", italic_bits=True, id17="Italic", instances=("Italic",))
+    assert analyze_variable_traits(font, "QualionNeue-VariableOblique.ttf").slope_word == "Oblique"
+    assert analyze_variable_traits(font, "QualionNeue-VariableItalic.ttf").slope_word == "Italic"

@@ -223,6 +223,33 @@ def test_the_slope_word_in_the_filename_beats_the_italic_in_id2_and_the_instance
     assert stem(resolve(font, tmp_path, "Probe-VariableItalic.ttf")).endswith("Italic")
 
 
+def test_an_italic_only_file_with_an_ital_axis_that_never_reaches_upright_is_italic(tmp_path):
+    # BT_Circuit: a 3..24 `ital` axis (a degree of italic), the default already leans, a separate Upright file exists
+    font = make(axes=(("wght", 100, 100, 900), ("ital", 3, 3, 24)), instances=("Light Italic 3",))
+    font["post"].italicAngle = -3.4
+    assert stem(resolve(font, tmp_path, "Probe-VariableItalic.ttf")) == "Probe-VariableItalic"
+    # Costaline: the axis defaults to 0 but the file leans and every instance is Italic
+    font = make(axes=(("wght", 100, 900, 900), ("ital", 0, 0, 9)), instances=("Thin Italic", "Italic"))
+    font["post"].italicAngle = -10.0
+    assert stem(resolve(font, tmp_path, "Probe-VariableItalic.ttf")) == "Probe-VariableItalic"
+
+
+def test_a_real_ital_axis_with_an_upright_default_stays_free(tmp_path):
+    font = make(axes=(("wght", 100, 400, 900), ("ital", 0, 0, 1)), instances=("Regular", "Italic"))
+    assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-Variable"
+    font = make(axes=(("wght", 100, 400, 900), ("ital", 100, 100, 1000)), instances=("Thin Italic",))
+    font["post"].italicAngle = 5.35  # the old wrong positive angle is not a lean
+    assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-Variable"
+
+
+def test_italic_flags_on_a_font_that_does_not_lean_keep_an_upright_filename(tmp_path):
+    # NaraCursive: ID2 and the flags say Italic, ID17 says Cursive, the angle is 0; the family is the Cursive one
+    font = make(style="Italic", italic_bits=True, id17="Cursive")
+    assert stem(resolve(font, tmp_path, "ProbeCursive-VariableUpright.ttf")) == "ProbeCursive-VariableUpright"
+    # a filename that does not say Upright, on a family that does not repeat the word, is still read from the tables
+    assert not stem(resolve(font, tmp_path, "Probe-VariableItalic.ttf")).endswith("Upright")
+
+
 # ---- fonts with no weight axis: only a weight the filename states is written, in the family ---------------------
 
 def test_a_weight_the_filename_states_goes_in_the_family(tmp_path):
