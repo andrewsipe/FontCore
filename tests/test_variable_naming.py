@@ -240,6 +240,10 @@ def test_a_real_ital_axis_with_an_upright_default_stays_free(tmp_path):
     font = make(axes=(("wght", 100, 400, 900), ("ital", 100, 100, 1000)), instances=("Thin Italic",))
     font["post"].italicAngle = 5.35  # the old wrong positive angle is not a lean
     assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-Variable"
+    # a roman + italic file whose axis defaults to 1 (TCO_Kuareen, Vogie) reaches upright, so it is free
+    font = make(axes=(("wght", 200, 900, 900), ("ital", 0, 1, 1)), instances=("Light", "Light Italic"))
+    font["post"].italicAngle = -12.0
+    assert stem(resolve(font, tmp_path, "Probe-Variable.ttf")) == "Probe-Variable"
 
 
 def test_italic_flags_on_a_font_that_does_not_lean_keep_an_upright_filename(tmp_path):
@@ -360,3 +364,9 @@ def test_a_missing_file_falls_back_to_the_filename_alone():
 )
 def test_copy_suffixes_are_dropped_not_made_a_variant(name, expected):
     assert format_variable_filename(parse_variable_filename(name + ".ttf")) == expected
+
+
+def test_a_slope_word_in_the_family_text_is_not_the_slope(tmp_path):
+    font = make(style="Italic", italic_bits=True, id17="Italic")
+    font["post"].italicAngle = -8.0
+    assert stem(resolve(font, tmp_path, "ProbeCursive-VariableItalic.ttf")) == "ProbeCursive-VariableItalic"
