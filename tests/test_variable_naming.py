@@ -14,6 +14,7 @@ from FontCore.core_name_policies import (
     build_id17_from_variable_slots,
 )
 from FontCore.core_variable_filename_parser import format_variable_filename, parse_variable_filename
+from FontCore.core_variable_traits import analyze_variable_traits
 from tests.test_variable_traits import make
 
 # filename stem -> (ID1, ID16, ID17, ID4)   (ID2 follows the existing ID2 rule)
@@ -370,3 +371,11 @@ def test_a_slope_word_in_the_family_text_is_not_the_slope(tmp_path):
     font = make(style="Italic", italic_bits=True, id17="Italic")
     font["post"].italicAngle = -8.0
     assert stem(resolve(font, tmp_path, "ProbeCursive-VariableItalic.ttf")) == "ProbeCursive-VariableItalic"
+
+
+def test_italic_flags_with_no_lean_in_an_upright_file_make_the_font_upright(tmp_path):
+    font = make(style="Italic", italic_bits=True, id17="Cursive")
+    traits = analyze_variable_traits(font, "ProbeCursive-VariableUpright.ttf")
+    assert traits.slope == "upright" and traits.italic_angle == 0
+    font["post"].italicAngle = -9.0
+    assert analyze_variable_traits(font, "ProbeCursive-VariableUpright.ttf").slope == "italic"  # a real lean wins
