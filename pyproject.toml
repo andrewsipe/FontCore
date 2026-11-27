@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fontcore"
-version = "0.12.1"
+version = "0.13.0"
 description = "Shared font-processing utilities (console, names, TTX, metadata) for Good Font Scripts"
 readme = "README.md"
 requires-python = ">=3.10"
