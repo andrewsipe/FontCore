@@ -240,3 +240,14 @@ def test_the_filename_slope_word_decides_the_traits_word():
     font = make(style="Italic", italic_bits=True, id17="Italic", instances=("Italic",))
     assert analyze_variable_traits(font, "QualionNeue-VariableOblique.ttf").slope_word == "Oblique"
     assert analyze_variable_traits(font, "QualionNeue-VariableItalic.ttf").slope_word == "Italic"
+
+
+def test_a_font_with_every_axis_pinned_is_called_out(tmp_path):
+    from FontCore.core_nameid_replacer_base import pinned_axes_note
+
+    pinned = make(axes=(("wght", 400, 400, 400),))
+    pinned.save(tmp_path / "Probe-Variable.ttf")
+    assert "wght = 400" in pinned_axes_note(str(tmp_path / "Probe-Variable.ttf"))
+    free = make(axes=(("wght", 100, 400, 900),))
+    free.save(tmp_path / "Free-Variable.ttf")
+    assert pinned_axes_note(str(tmp_path / "Free-Variable.ttf")) is None
