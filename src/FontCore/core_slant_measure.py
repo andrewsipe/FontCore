@@ -29,6 +29,7 @@ STAIR_GAP = 3.0  # edges say upright but the whole shape leans this far: a stair
 CONFIRM_SPREAD = 0.5  # the stem edges must agree this closely (degrees) before a second measure is asked to confirm them
 CONFIRM_SAMPLES = 10
 CONFIRM_AGREE = 1.5  # the stem centre-line must land this close to the edge measure
+AXIS_MOVES_LEAN = 3.0  # an axis counts as a lean dial when an end of its range leans this many degrees differently
 CENTRE_CHARS = "IlH"
 CENTRE_ROWS = (0.3, 0.4, 0.6, 0.7)  # heights, as a fraction of the glyph, clear of serifs, feet and crossbars
 
@@ -272,6 +273,36 @@ def confirmed_slant(font: Any) -> Optional[float]:
     if centre is None or abs(centre - m.measured) > CONFIRM_AGREE:
         return None
     return m.measured
+
+
+def lean_axes(font: Any) -> dict[str, float]:
+    """The variable axes that move the stem lean, as {tag: largest change in degrees}, measured on the outlines.
+
+    Each axis is set to each end of its range (the others stay at their defaults) and the lean is measured again. The tag
+    is not read: ``slnt``, ``ital``, a ``ROTA`` rotation dial and a ``hght`` axis that flattens a 3D extrusion all show up
+    the same way. An end that cannot be built or measured is skipped, so an empty result means no axis was seen to move
+    the lean, not that none can. Not a static font: returns {}."""
+    if "fvar" not in font:
+        return {}
+    base = measure_slant(font).measured
+    if base is None:
+        return {}
+    try:
+        from fontTools.varLib import instancer
+    except Exception:
+        return {}
+    moves: dict[str, float] = {}
+    for axis in font["fvar"].axes:
+        for end in (axis.minValue, axis.maxValue):
+            if end == axis.defaultValue:
+                continue
+            try:
+                lean = measure_slant(instancer.instantiateVariableFont(font, {axis.axisTag: end}, inplace=False)).measured
+            except Exception:
+                continue
+            if lean is not None and abs(lean - base) >= AXIS_MOVES_LEAN:
+                moves[axis.axisTag] = max(moves.get(axis.axisTag, 0.0), round(abs(lean - base), 2))
+    return moves
 
 
 def check_slant(font: Any) -> SlantCheck:
