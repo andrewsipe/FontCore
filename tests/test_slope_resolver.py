@@ -239,3 +239,17 @@ def test_an_alternate_with_italic_flags_names_and_lean_is_italic_even_when_stat_
 def test_a_plain_italic_with_only_part_of_the_evidence_against_stat_is_left_for_a_person():
     plain = resolve_slopes([ev("Foo-VariableItalic.ttf", stat="upright", names_italic=True, lean=15.5)])[0]
     assert plain.review
+
+
+def test_a_stored_right_lean_the_outlines_do_not_show_is_flagged_not_overruled():
+    d = resolve_slopes([ev("DarkLondon-CustomVariableItalic.ttf", names_italic=True, bits_italic=True, lean=1.6, declared=-14.4)])[0]
+    assert d.review and d.slope == "upright"
+    assert "stores an angle" in " ".join(d.reasons)
+    near = resolve_slopes([ev("ManuForma-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=2.4, declared=-5.09)])[0]
+    assert near.review
+
+
+def test_a_small_or_backslanted_stored_angle_does_not_hold_back_a_flat_italic_named_font():
+    for declared in (-3.3, 0.0, 3.1, 24.0):
+        d = resolve_slopes([ev("Foo-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=0.8, declared=declared, stat="upright")])[0]
+        assert d.slope == "upright" and not d.review, declared
