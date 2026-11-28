@@ -72,3 +72,38 @@ def _empty():
     fb.setupOS2()
     fb.setupPost()
     return fb.font
+
+
+def test_a_stair_stepped_slant_is_not_called_upright():
+    from FontCore.core_slant_measure import STAIR_GAP  # noqa: F401
+
+    def stairs():
+        pen = TTGlyphPen(None)
+        pts = []
+        # a stem 100 wide built from 100-tall blocks, each shifted right 25: vertical edges, slanted overall
+        x = 0
+        left, right = [], []
+        for i in range(8):
+            y0, y1 = i * 100, (i + 1) * 100
+            left += [(x, y0), (x, y1)]
+            right += [(x + 100, y0), (x + 100, y1)]
+            x += 25
+        pen.moveTo(left[0])
+        for pt in left[1:]:
+            pen.lineTo(pt)
+        for pt in reversed(right):
+            pen.lineTo(pt)
+        pen.closePath()
+        return pen.glyph()
+
+    names = [".notdef", "H", "I", "l", "E"]
+    fb = FontBuilder(1000, isTTF=True)
+    fb.setupGlyphOrder(names)
+    fb.setupCharacterMap({ord(c): c for c in "HIlE"})
+    fb.setupGlyf({n: (TTGlyphPen(None).glyph() if n == ".notdef" else stairs()) for n in names})
+    fb.setupHorizontalMetrics({n: (500, 0) for n in names})
+    fb.setupHorizontalHeader(ascent=800, descent=-200)
+    fb.setupNameTable({"familyName": "Probe", "styleName": "Italic"})
+    fb.setupOS2()
+    fb.setupPost(italicAngle=-15)
+    assert check_slant(fb.font).verdict == "unmeasurable"
