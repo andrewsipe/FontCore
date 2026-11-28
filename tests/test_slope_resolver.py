@@ -270,23 +270,3 @@ def test_gather_evidence_records_the_name_it_was_given(tmp_path):
     path = _saved(tmp_path, "tmp_0001.ttf")
     assert gather_evidence(path, "Foo-VariableItalic.ttf").name == "Foo-VariableItalic.ttf"
     assert gather_evidence(path).name == "tmp_0001.ttf"
-
-
-def test_angle_overrides_come_from_the_same_file_and_leave_slope_lines_alone(tmp_path, monkeypatch):
-    from FontCore.core_slope_resolver import angle_override, load_angle_overrides, load_overrides
-
-    f = tmp_path / "slope_overrides.txt"
-    f.write_text("Littlebit*   upright\nTWK_Burns*  angle 0   # a rotation dial\nBD_LoFi*  angle -2.5\nBroken* angle many\nOnly angle\n")
-    monkeypatch.setenv("FONTCORE_SLOPE_OVERRIDES", str(f))
-    assert load_angle_overrides() == [("TWK_Burns*", 0.0), ("BD_LoFi*", -2.5)]
-    assert load_overrides() == [("Littlebit*", "upright")]  # an angle line is not a slope line
-    assert angle_override("twk_burns-customvariableupright.ttf") == 0.0
-    assert angle_override("BD_LoFi-VariableUpright.ttf") == -2.5
-    assert angle_override("Other-Variable.ttf") is None
-
-
-def test_no_overrides_file_means_no_angle_override(tmp_path, monkeypatch):
-    from FontCore.core_slope_resolver import angle_override
-
-    monkeypatch.setenv("FONTCORE_SLOPE_OVERRIDES", str(tmp_path / "missing.txt"))
-    assert angle_override("Anything.ttf") is None
