@@ -81,3 +81,52 @@ def test_the_resolver_can_be_given_the_original_filename_when_the_file_sits_unde
     path = save(make(axes=(("wght", 100, 400, 900), ("wdth", 75, 100, 125))), tmp_path, "_tmp_0123456789ab.ttf")
     slots = resolve_variable_slots(path, name="BT_Avance-Variable.ttf")
     assert format_variable_filename(slots) == "BT_Avance-WidthVariableUpright"
+
+
+# ---- the run's family-wide slope decision -------------------------------------------------------------------
+
+def test_an_upright_decision_makes_id2_regular_and_the_stem_upright_whatever_the_stale_flags_say(tmp_path):
+    from FontCore.core_nameid_replacer_base import set_slope_decisions
+
+    path = save(make(style="Italic", italic_bits=True, id17="Italic"), tmp_path, "Probe-VariableUpright.ttf")
+    try:
+        assert variable_id2_subfamily(TTFont(path), path, "Italic") in ("Italic", "Regular")  # before: whatever the tables say
+        set_slope_decisions({path: "upright"})
+        assert variable_id2_subfamily(TTFont(path), path, "Italic") == "Regular"
+        assert variable_house_stem(path) == "Probe-VariableUpright"
+    finally:
+        set_slope_decisions({})
+
+
+def test_an_italic_decision_makes_id2_italic_for_a_font_whose_tables_say_nothing(tmp_path):
+    from FontCore.core_nameid_replacer_base import set_slope_decisions
+
+    path = save(make(), tmp_path, "Probe-VariableItalic.ttf")
+    try:
+        set_slope_decisions({path: "italic"})
+        assert variable_id2_subfamily(TTFont(path), path, "Regular") == "Italic"
+        assert "Italic" in variable_house_stem(path)
+    finally:
+        set_slope_decisions({})
+
+
+def test_a_free_slope_axis_ignores_a_decision(tmp_path):
+    from FontCore.core_nameid_replacer_base import set_slope_decisions
+
+    path = save(make(axes=(("wght", 100, 400, 900), ("slnt", -12, 0, 0))), tmp_path, "Probe-Variable.ttf")
+    try:
+        set_slope_decisions({path: "italic"})
+        assert variable_id2_subfamily(TTFont(path), path, "Regular") == "Regular"
+    finally:
+        set_slope_decisions({})
+
+
+def test_resolve_run_slope_decisions_pairs_real_fonts_and_never_raises(tmp_path):
+    from FontCore.core_nameid_replacer_base import resolve_run_slope_decisions
+
+    it = save(make(style="Italic", italic_bits=True, stat_ital=(1, "Italic")), tmp_path, "Foo-VariableItalic.ttf")
+    up2 = save(make(stat_ital=(0, "Roman")), tmp_path, "Foo-VariableUpright.ttf")
+    decided, pairs, left = resolve_run_slope_decisions([up2, it])
+    assert pairs == 1 and decided[it] == "italic" and decided[up2] == "upright"
+    assert resolve_run_slope_decisions([str(tmp_path / "missing.ttf")]) == ({}, 0, 1)  # unreadable: flagged, no decision
+    assert resolve_run_slope_decisions(["notes.txt"]) == ({}, 0, 0)  # not a font file: ignored
