@@ -185,10 +185,14 @@ def _lone(e: FontEvidence) -> SlopeDecision:
     review = False
     if claims:
         reasons.append("its " + ", ".join(claims) + " say italic, which nothing else supports")
-        review = e.stat != "upright" and (e.lean or 0) >= LONE_ITALIC_LEAN
+        # Acted on only when the outlines positively read upright and STAT does not say italic. A font whose outlines cannot
+        # be measured, or that leans a little, is left to the tool's own rules and flagged.
+        proven_upright = e.lean is not None and e.lean < 1.0 and e.stat != "italic"
+        review = not proven_upright
         if review:
-            reasons.append(f"the outlines lean {e.lean:g} degrees: Upright with a slant, or an Italic without its Upright?")
-    return _decision(e, "upright", "medium" if claims else "high", "lone", reasons, review)
+            reasons.append(f"the outlines lean {e.lean:g} degrees: Upright with a slant, or an Italic without its Upright?"
+                           if e.lean is not None else "the outlines cannot be measured, so the italic claims are not overruled")
+    return _decision(e, "upright", "high" if (not claims or not review) else "medium", "lone", reasons, review)
 
 
 def _pair(a: FontEvidence, b: FontEvidence) -> tuple[SlopeDecision, SlopeDecision]:

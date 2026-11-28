@@ -98,3 +98,12 @@ def test_two_slanted_files_with_one_name_are_not_an_upright_and_an_italic():
 def test_a_lone_stat_italic_with_an_upright_filename_and_upright_outlines_is_flagged_not_trusted():
     d = resolve_slopes([ev("NaraCursive-VariableUpright.ttf", stat="italic", lean=0.0, names_italic=True, bits_italic=True)])[0]
     assert d.slope == "upright" and d.review
+
+
+def test_a_lone_italic_named_font_is_overruled_only_when_its_outlines_positively_read_upright():
+    proven = resolve_slopes([ev("A-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=0.0, stat="upright")])[0]
+    assert proven.slope == "upright" and not proven.review
+    unmeasured = resolve_slopes([ev("B-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=None)])[0]
+    assert unmeasured.review
+    shallow = resolve_slopes([ev("C-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=2.0)])[0]
+    assert shallow.review
