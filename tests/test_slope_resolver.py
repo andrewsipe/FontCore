@@ -164,6 +164,6 @@ def test_gather_evidence_reads_a_real_font_and_judges_it_by_the_given_name(tmp_p
     e = gather_evidence(path, "Foo-VariableItalic.ttf")
     assert e.error is None
     assert e.filename == "italic" and e.bits_italic and e.names_italic
-    assert e.key == family_key(str(tmp_path / "Foo-VariableUpright.ttf"))
+    assert e.key == family_key(str(tmp_path / "Foo-VariableUpright.ttf"), (("wght", 100, 900),))
     plain = gather_evidence(path)
     assert plain.error is None and plain.filename is None
