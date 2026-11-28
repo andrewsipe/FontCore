@@ -78,9 +78,10 @@ def test_three_files_with_one_name_are_a_group_for_a_person():
     assert all(x.role == "group" and x.slope == "upright" and x.review for x in d)
 
 
-def test_different_glyph_sets_are_not_called_a_pair():
-    d = resolve_slopes([ev("Foo-VariableItalic.ttf", lean=9, glyphs=200), ev("Foo-VariableUpright.ttf", lean=0, glyphs=800)])
-    assert all(x.slope == "upright" and x.review for x in d)
+def test_different_glyph_sets_lower_the_confidence_but_do_not_block_a_clear_pair():
+    d = by_name(resolve_slopes([ev("Foo-VariableItalic.ttf", lean=9, glyphs=900), ev("Foo-VariableUpright.ttf", lean=0, glyphs=1460)]))
+    assert d["Foo-VariableItalic.ttf"].slope == "italic" and d["Foo-VariableItalic.ttf"].confidence == "medium"
+    assert not d["Foo-VariableItalic.ttf"].review
 
 
 def test_a_free_slope_axis_and_an_unreadable_font_take_no_part():

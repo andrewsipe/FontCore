@@ -27,7 +27,7 @@ from typing import Any, Iterable, Optional
 
 LEAN_MARGIN = 2.5  # degrees: one font of a pair must lean this much more than the other for the lean to decide
 LONE_ITALIC_LEAN = 3.0  # a lone font keeps Italic from agreeing evidence only when it leans at least this much
-GLYPH_COUNT_TOLERANCE = 0.25  # a pair's glyph counts may differ by this fraction
+GLYPH_COUNT_TOLERANCE = 0.25  # past this gap in glyph counts a pair is only 'medium' at best: italics are often subsets
 
 _ITALIC_WORD = re.compile(r"italic|oblique|slanted|slant", re.I)
 _UPRIGHT_WORD = re.compile(r"upright|roman", re.I)
@@ -192,10 +192,6 @@ def _lone(e: FontEvidence) -> SlopeDecision:
 
 
 def _pair(a: FontEvidence, b: FontEvidence) -> tuple[SlopeDecision, SlopeDecision]:
-    if a.glyphs and b.glyphs and abs(a.glyphs - b.glyphs) / max(a.glyphs, b.glyphs) > GLYPH_COUNT_TOLERANCE:
-        why = [f"same name but {a.glyphs} and {b.glyphs} glyphs: not obviously one family's two slopes"]
-        return (_decision(a, "upright", "low", "pair", why, True, b.path), _decision(b, "upright", "low", "pair", why, True, a.path))
-
     if (not (a.stat and b.stat and a.stat != b.stat) and a.lean is not None and b.lean is not None
             and min(a.lean, b.lean) >= LONE_ITALIC_LEAN and abs(a.lean - b.lean) < LEAN_MARGIN):
         why = [f"both lean ({a.lean:g} and {b.lean:g} degrees): two slanted files share one name, not an Upright and an Italic"]
@@ -243,6 +239,10 @@ def _pair(a: FontEvidence, b: FontEvidence) -> tuple[SlopeDecision, SlopeDecisio
 
     if italic is None:
         return (_decision(a, "upright", "low", "pair", reasons, True, b.path), _decision(b, "upright", "low", "pair", reasons, True, a.path))
+    if a.glyphs and b.glyphs and abs(a.glyphs - b.glyphs) / max(a.glyphs, b.glyphs) > GLYPH_COUNT_TOLERANCE:
+        reasons.append(f"the glyph counts differ ({a.glyphs} and {b.glyphs}); an italic is often a subset")
+        if confidence == "high":
+            confidence = "medium"
     other = b if italic is a else a
     return (_decision(italic, "italic", confidence, "pair", reasons, review, other.path),
             _decision(other, "upright", confidence, "pair", [f"partner {Path(italic.path).name} is the italic"], review, italic.path))
