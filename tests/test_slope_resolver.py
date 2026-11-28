@@ -155,3 +155,15 @@ def test_no_decision_changes_nothing(tmp_path):
 def test_a_temporary_name_does_not_hide_the_real_filename():
     assert family_key("/f/tmp_0001.ttf", name="Foo-VariableItalic.ttf") == family_key("/f/Foo-VariableUpright.ttf")
     assert filename_slope("/f/tmp_0001.ttf", name="Foo-VariableItalic.ttf") == "italic"
+
+
+def test_gather_evidence_reads_a_real_font_and_judges_it_by_the_given_name(tmp_path):
+    from FontCore.core_slope_resolver import gather_evidence
+
+    path = _saved(tmp_path, "tmp_0001.ttf", style="Italic", italic_bits=True, id17="Italic")
+    e = gather_evidence(path, "Foo-VariableItalic.ttf")
+    assert e.error is None
+    assert e.filename == "italic" and e.bits_italic and e.names_italic
+    assert e.key == family_key(str(tmp_path / "Foo-VariableUpright.ttf"))
+    plain = gather_evidence(path)
+    assert plain.error is None and plain.filename is None

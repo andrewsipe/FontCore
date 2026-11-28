@@ -124,8 +124,8 @@ def gather_evidence(path: str, name: Optional[str] = None) -> FontEvidence:
                                 if a.axisTag not in ("ital", "slnt")))
         else:
             stat = _stat_vote(font)
-        name = font["name"]
-        names = " ".join(filter(None, (name.getDebugName(i) for i in (2, 4, 6, 17))))
+        name_table = font["name"]
+        names = " ".join(filter(None, (name_table.getDebugName(i) for i in (2, 4, 6, 17))))
         os2 = font["OS/2"].fsSelection if "OS/2" in font else 0
         mac = font["head"].macStyle if "head" in font else 0
         return FontEvidence(
