@@ -73,9 +73,30 @@ def test_the_filename_words_decide_a_pair_the_lean_cannot_separate():
     assert d["Foo-VariableItalic.ttf"].slope == "italic" and d["Foo-VariableItalic.ttf"].confidence == "medium"
 
 
-def test_three_files_with_one_name_are_a_group_for_a_person():
-    d = resolve_slopes([ev("Foo-VariableItalic.ttf", lean=9), ev("Foo-VariableUpright.ttf", lean=0), ev("Foo-VariableSlanted.ttf", lean=15)])
-    assert all(x.role == "group" and x.slope == "upright" and x.review for x in d)
+def test_in_a_group_of_three_the_upright_is_the_baseline_and_each_other_file_is_italic_if_it_leans_more():
+    d = by_name(resolve_slopes([ev("Foo-VariableItalic.ttf", lean=9), ev("Foo-VariableUpright.ttf", lean=0), ev("Foo-VariableSlanted.ttf", lean=15)]))
+    assert d["Foo-VariableUpright.ttf"].slope == "upright" and not d["Foo-VariableUpright.ttf"].review
+    assert d["Foo-VariableItalic.ttf"].slope == "italic" and d["Foo-VariableSlanted.ttf"].slope == "italic"
+    assert not any(x.review for x in d.values())
+
+
+def test_a_cursive_that_leans_like_the_upright_is_an_upright_alternate_and_one_that_leans_is_an_italic_alternate():
+    d = by_name(resolve_slopes([ev("Nara-VariableUpright.ttf", lean=0), ev("Nara-VariableItalic.ttf", lean=12), ev("Nara-VariableCursive.ttf", lean=0.4)]))
+    assert d["Nara-VariableCursive.ttf"].slope == "upright" and not d["Nara-VariableCursive.ttf"].review
+    d = by_name(resolve_slopes([ev("Control-VariableUpright.ttf", lean=0), ev("Control-VariableItalic.ttf", lean=12), ev("Control-VariableCursive.ttf", lean=20)]))
+    assert d["Control-VariableCursive.ttf"].slope == "italic" and d["Control-VariableItalic.ttf"].slope == "italic"
+
+
+def test_a_group_with_no_single_upright_or_an_unmeasurable_member_is_left_for_a_person():
+    d = resolve_slopes([ev("Foo-VariableItalic.ttf", lean=9), ev("Foo-VariableOblique.ttf", lean=9), ev("Foo-VariableSlanted.ttf", lean=9)])
+    assert all(x.review and x.slope == "upright" for x in d)
+    d = resolve_slopes([ev("Foo-VariableUpright.ttf", lean=0), ev("Foo-VariableItalic.ttf", lean=None), ev("Foo-VariableOblique.ttf", lean=9)])
+    assert all(x.review for x in d)
+
+
+def test_a_group_member_named_italic_that_does_not_lean_is_flagged():
+    d = by_name(resolve_slopes([ev("Foo-VariableUpright.ttf", lean=0), ev("Foo-VariableItalic.ttf", lean=0.5), ev("Foo-VariableOblique.ttf", lean=9)]))
+    assert d["Foo-VariableItalic.ttf"].review
 
 
 def test_different_glyph_sets_lower_the_confidence_but_do_not_block_a_clear_pair():
@@ -90,23 +111,56 @@ def test_a_free_slope_axis_and_an_unreadable_font_take_no_part():
     assert d["Bad-Regular.ttf"].slope == "unknown" and d["Bad-Regular.ttf"].review
 
 
-def test_two_slanted_files_with_one_name_are_not_an_upright_and_an_italic():
+def test_two_slanted_files_with_different_slope_words_are_both_italic():
     d = resolve_slopes([ev("Vast-VariableItalic.ttf", lean=16.0), ev("Vast-VariableOblique.ttf", lean=16.0)])
+    assert all(x.slope == "italic" and not x.review for x in d)
+
+
+def test_two_slanted_files_with_the_same_word_are_a_duplicate_for_a_person():
+    d = resolve_slopes([ev("Vast-VariableItalic.ttf", lean=16.0), ev("Vast-VariableItalic~001.ttf", lean=16.0)])
     assert all(x.slope == "italic" and x.review for x in d)
 
 
-def test_a_lone_stat_italic_with_an_upright_filename_and_upright_outlines_is_flagged_not_trusted():
+def test_a_lone_stat_italic_with_an_upright_filename_and_upright_outlines_is_upright():
     d = resolve_slopes([ev("NaraCursive-VariableUpright.ttf", stat="italic", lean=0.0, names_italic=True, bits_italic=True)])[0]
-    assert d.slope == "upright" and d.review
+    assert d.slope == "upright" and not d.review and d.confidence == "medium"
 
 
-def test_a_lone_italic_named_font_is_overruled_only_when_its_outlines_positively_read_upright():
-    proven = resolve_slopes([ev("A-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=0.0, stat="upright")])[0]
-    assert proven.slope == "upright" and not proven.review
+def test_a_lone_italic_named_font_is_overruled_when_it_leans_less_than_an_italic_would():
+    flat = resolve_slopes([ev("A-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=0.0, stat="upright")])[0]
+    assert flat.slope == "upright" and not flat.review
+    shallow = resolve_slopes([ev("C-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=2.0)])[0]
+    assert shallow.slope == "upright" and not shallow.review  # a script or a pattern, not an italic
     unmeasured = resolve_slopes([ev("B-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=None)])[0]
     assert unmeasured.review
-    shallow = resolve_slopes([ev("C-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=2.0)])[0]
-    assert shallow.review
+    # an upright-named font that leans clearly, with italic flags, is not decided: could be a swapped Italic
+    leaning = resolve_slopes([ev("D-VariableUpright.ttf", names_italic=True, bits_italic=True, lean=6.5)])[0]
+    assert leaning.review
+
+
+def test_a_lone_cursive_or_corsiva_that_leans_with_italic_flags_is_an_italic_alternate():
+    d = resolve_slopes([ev("FL_Rare-VariableCursive.ttf", names_italic=True, bits_italic=True, lean=15.5)])[0]
+    assert d.slope == "italic" and not d.review
+    d = resolve_slopes([ev("AL_Sigla-VariableCorsiva.ttf", names_italic=True, lean=15.0)])[0]
+    assert d.slope == "italic"
+
+
+def test_a_pair_with_a_corsiva_is_split_by_the_lean():
+    d = by_name(resolve_slopes([ev("AL_Sigla-VariableUpright.ttf", lean=0), ev("AL_Sigla-VariableCorsiva.ttf", lean=15)]))
+    assert d["AL_Sigla-VariableCorsiva.ttf"].slope == "italic" and d["AL_Sigla-VariableUpright.ttf"].slope == "upright"
+
+
+def test_your_overrides_file_settles_a_font_the_outlines_cannot(tmp_path, monkeypatch):
+    from FontCore.core_slope_resolver import load_overrides
+
+    f = tmp_path / "slope_overrides.txt"
+    f.write_text("# bitmap fonts\nLittlebit*   upright\nBad line\nSomething-* sideways\n")
+    monkeypatch.setenv("FONTCORE_SLOPE_OVERRIDES", str(f))
+    assert load_overrides() == [("Littlebit*", "upright")]
+    d = resolve_slopes([ev("LittlebitDotty-CustomVariableUpright.ttf", names_italic=True, bits_italic=True, lean=6.5)])[0]
+    assert d.slope == "upright" and not d.review and d.confidence == "high"
+    assert "overrides" in d.reasons[0] and set(d.differs) == {"bits", "names"}
+    assert resolve_slopes([ev("Other-VariableUpright.ttf", lean=0)])[0].reasons != d.reasons
 
 
 # ---- the decision settles the slope word in a variable filename ---------------------------------------------
@@ -167,3 +221,21 @@ def test_gather_evidence_reads_a_real_font_and_judges_it_by_the_given_name(tmp_p
     assert e.key == family_key(str(tmp_path / "Foo-VariableUpright.ttf"), (("wght", 100, 900),))
     plain = gather_evidence(path)
     assert plain.error is None and plain.filename is None
+
+
+def test_an_upright_decision_keeps_a_cursive_word_so_it_cannot_clash_with_the_real_upright(tmp_path):
+    from FontCore.core_variable_filename_parser import format_variable_filename, resolve_variable_slots
+
+    path = _saved(tmp_path, "Nara-VariableCursive.ttf")
+    assert format_variable_filename(resolve_variable_slots(path, slope_decision="upright")).endswith("Cursive")
+    assert format_variable_filename(resolve_variable_slots(path, slope_decision="italic")).endswith("Cursive")
+
+
+def test_an_alternate_with_italic_flags_names_and_lean_is_italic_even_when_stat_says_upright():
+    alt = resolve_slopes([ev("FL_Rare-VariableCursive.ttf", stat="upright", names_italic=True, bits_italic=True, lean=15.5)])[0]
+    assert alt.slope == "italic" and not alt.review
+
+
+def test_a_plain_italic_with_only_part_of_the_evidence_against_stat_is_left_for_a_person():
+    plain = resolve_slopes([ev("Foo-VariableItalic.ttf", stat="upright", names_italic=True, lean=15.5)])[0]
+    assert plain.review
