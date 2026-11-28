@@ -336,6 +336,42 @@ def load_overrides(path: Optional[str] = None) -> list:
     return out
 
 
+def _overrides_path(path: Optional[str]) -> str:
+    import os
+
+    return path or os.environ.get("FONTCORE_SLOPE_OVERRIDES") or os.path.expanduser("~/.config/fontcore/slope_overrides.txt")
+
+
+def load_angle_overrides(path: Optional[str] = None) -> list:
+    """(pattern, degrees) pairs from the same overrides file: one ``PATTERN angle DEGREES`` per line (``Burns*  angle 0``).
+
+    For a font whose italic angle only a person can place: a variable font whose lean is a dial, a 3D art font. The
+    pattern is matched against the filename like the slope overrides, and the angle uses the italicAngle sign (a font
+    leaning right is negative). A line that is not of this form is not read here, so the file keeps one format."""
+    out: list = []
+    try:
+        with open(_overrides_path(path), encoding="utf-8") as fh:
+            for line in fh:
+                parts = line.split("#", 1)[0].split()
+                if len(parts) >= 3 and parts[-2].lower() == "angle":
+                    try:
+                        out.append((" ".join(parts[:-2]), float(parts[-1])))
+                    except ValueError:
+                        continue
+    except OSError:
+        pass
+    return out
+
+
+def angle_override(filename: str, overrides: Optional[list] = None) -> Optional[float]:
+    """The degrees the overrides file sets for this filename, or None. The first matching line wins."""
+    import fnmatch
+
+    pairs = load_angle_overrides() if overrides is None else overrides
+    name = filename.lower()
+    return next((deg for pattern, deg in pairs if fnmatch.fnmatch(name, pattern.lower())), None)
+
+
 def _apply_overrides(decisions: list, evidence: dict, overrides: list) -> list:
     import fnmatch
 
@@ -392,4 +428,4 @@ def decide_slopes(paths: Iterable[str]) -> list[SlopeDecision]:
     return resolve_slopes([gather_evidence(str(p)) for p in paths])
 
 
-__all__ = ["load_overrides", "clear_decisions", "decide_slopes", "FontEvidence", "SlopeDecision", "gather_evidence", "resolve_slopes", "family_key", "filename_slope"]
+__all__ = ["load_overrides", "load_angle_overrides", "angle_override", "clear_decisions", "decide_slopes", "FontEvidence", "SlopeDecision", "gather_evidence", "resolve_slopes", "family_key", "filename_slope"]
