@@ -253,3 +253,20 @@ def test_a_small_or_backslanted_stored_angle_does_not_hold_back_a_flat_italic_na
     for declared in (-3.3, 0.0, 3.1, 24.0):
         d = resolve_slopes([ev("Foo-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=0.8, declared=declared, stat="upright")])[0]
         assert d.slope == "upright" and not d.review, declared
+
+
+def test_an_override_matches_the_real_filename_when_the_file_sits_under_a_temporary_name(tmp_path, monkeypatch):
+    f = tmp_path / "slope_overrides.txt"
+    f.write_text("Littlebit*  upright\n")
+    monkeypatch.setenv("FONTCORE_SLOPE_OVERRIDES", str(f))
+    e = FontEvidence(path="/fonts/_tmp_0001.ttf", key=family_key("/fonts/_tmp_0001.ttf", (), "LittlebitDotty-CustomVariableItalic.ttf"),
+                     filename="italic", names_italic=True, bits_italic=True, lean=6.5, name="LittlebitDotty-CustomVariableItalic.ttf")
+    assert resolve_slopes([e])[0].slope == "upright"
+
+
+def test_gather_evidence_records_the_name_it_was_given(tmp_path):
+    from FontCore.core_slope_resolver import gather_evidence
+
+    path = _saved(tmp_path, "tmp_0001.ttf")
+    assert gather_evidence(path, "Foo-VariableItalic.ttf").name == "Foo-VariableItalic.ttf"
+    assert gather_evidence(path).name == "tmp_0001.ttf"
