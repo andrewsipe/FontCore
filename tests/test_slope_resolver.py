@@ -150,3 +150,8 @@ def test_no_decision_changes_nothing(tmp_path):
 
     path = _saved(tmp_path, "Foo-VariableItalic.ttf", style="Italic", italic_bits=True, id17="Italic")
     assert resolve_variable_slots(path) == resolve_variable_slots(path, slope_decision=None)
+
+
+def test_a_temporary_name_does_not_hide_the_real_filename():
+    assert family_key("/f/tmp_0001.ttf", name="Foo-VariableItalic.ttf") == family_key("/f/Foo-VariableUpright.ttf")
+    assert filename_slope("/f/tmp_0001.ttf", name="Foo-VariableItalic.ttf") == "italic"
