@@ -278,4 +278,16 @@ def resolve_slopes(evidence: Iterable[FontEvidence]) -> list[SlopeDecision]:
     return list(out.values())
 
 
-__all__ = ["FontEvidence", "SlopeDecision", "gather_evidence", "resolve_slopes", "family_key", "filename_slope"]
+def clear_decisions(decisions: Iterable[SlopeDecision]) -> dict:
+    """path -> "italic" | "upright" for the decisions a tool may act on: not flagged, and not a free slope axis."""
+    import os
+
+    return {os.path.abspath(d.path): d.slope for d in decisions if not d.review and d.slope in ("upright", "italic")}
+
+
+def decide_slopes(paths: Iterable[str]) -> list[SlopeDecision]:
+    """Gather the evidence for these fonts and decide them together (one folder at a time keeps pairs together)."""
+    return resolve_slopes([gather_evidence(str(p)) for p in paths])
+
+
+__all__ = ["clear_decisions", "decide_slopes", "FontEvidence", "SlopeDecision", "gather_evidence", "resolve_slopes", "family_key", "filename_slope"]

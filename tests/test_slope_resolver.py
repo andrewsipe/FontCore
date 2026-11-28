@@ -107,3 +107,46 @@ def test_a_lone_italic_named_font_is_overruled_only_when_its_outlines_positively
     assert unmeasured.review
     shallow = resolve_slopes([ev("C-VariableItalic.ttf", names_italic=True, bits_italic=True, lean=2.0)])[0]
     assert shallow.review
+
+
+# ---- the decision settles the slope word in a variable filename ---------------------------------------------
+
+def _saved(tmp_path, name, **kw):
+    from tests.test_variable_traits import make
+
+    font = make(**kw)
+    path = tmp_path / name
+    font.save(path)
+    return str(path)
+
+
+def test_an_upright_decision_beats_stale_italic_flags_in_the_filename_slots(tmp_path):
+    from FontCore.core_variable_filename_parser import format_variable_filename, resolve_variable_slots
+
+    path = _saved(tmp_path, "Foo-VariableItalic.ttf", style="Italic", italic_bits=True, id17="Italic")
+    assert "Italic" in format_variable_filename(resolve_variable_slots(path))  # the flags alone say italic
+    slots = resolve_variable_slots(path, slope_decision="upright")
+    assert slots.upright and not slots.slope
+    assert "Italic" not in format_variable_filename(slots)
+
+
+def test_an_italic_decision_names_a_font_whose_flags_say_nothing(tmp_path):
+    from FontCore.core_variable_filename_parser import format_variable_filename, resolve_variable_slots
+
+    path = _saved(tmp_path, "Foo-VariableUpright.ttf")
+    assert "Italic" not in format_variable_filename(resolve_variable_slots(path))
+    assert "Italic" in format_variable_filename(resolve_variable_slots(path, slope_decision="italic"))
+
+
+def test_a_designers_oblique_word_survives_an_italic_decision(tmp_path):
+    from FontCore.core_variable_filename_parser import format_variable_filename, resolve_variable_slots
+
+    path = _saved(tmp_path, "Foo-VariableOblique.ttf")
+    assert "Oblique" in format_variable_filename(resolve_variable_slots(path, slope_decision="italic"))
+
+
+def test_no_decision_changes_nothing(tmp_path):
+    from FontCore.core_variable_filename_parser import resolve_variable_slots
+
+    path = _saved(tmp_path, "Foo-VariableItalic.ttf", style="Italic", italic_bits=True, id17="Italic")
+    assert resolve_variable_slots(path) == resolve_variable_slots(path, slope_decision=None)
