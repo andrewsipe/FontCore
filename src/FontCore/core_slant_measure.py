@@ -10,7 +10,9 @@ Read-only. A font with no usable straight stems (rounded or hand-drawn) gives ``
 
 from __future__ import annotations
 
+import logging
 import math
+import warnings
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional
 
@@ -292,17 +294,33 @@ def lean_axes(font: Any) -> dict[str, float]:
     except Exception:
         return {}
     moves: dict[str, float] = {}
+    quiet = logging.getLogger("fontTools")  # the instancer complains about a font's own faults (a bad avar); not ours to print
+    previous = quiet.level
+    quiet.setLevel(logging.CRITICAL)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            measured = _axis_end_leans(font, instancer)
+    finally:
+        quiet.setLevel(previous)
+    for tag, lean in measured:
+        if lean is not None and abs(lean - base) >= AXIS_MOVES_LEAN:
+            moves[tag] = max(moves.get(tag, 0.0), round(abs(lean - base), 2))
+    return moves
+
+
+def _axis_end_leans(font: Any, instancer: Any) -> list[tuple[str, Optional[float]]]:
+    """(tag, lean) with each axis set to each end of its range; an end that cannot be built is left out."""
+    out: list[tuple[str, Optional[float]]] = []
     for axis in font["fvar"].axes:
         for end in (axis.minValue, axis.maxValue):
             if end == axis.defaultValue:
                 continue
             try:
-                lean = measure_slant(instancer.instantiateVariableFont(font, {axis.axisTag: end}, inplace=False)).measured
+                out.append((axis.axisTag, measure_slant(instancer.instantiateVariableFont(font, {axis.axisTag: end}, inplace=False)).measured))
             except Exception:
                 continue
-            if lean is not None and abs(lean - base) >= AXIS_MOVES_LEAN:
-                moves[axis.axisTag] = max(moves.get(axis.axisTag, 0.0), round(abs(lean - base), 2))
-    return moves
+    return out
 
 
 def check_slant(font: Any) -> SlantCheck:

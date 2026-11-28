@@ -183,3 +183,20 @@ def test_an_axis_that_cannot_be_built_is_skipped_not_fatal(monkeypatch):
 
     monkeypatch.setattr(instancer, "instantiateVariableFont", boom)
     assert lean_axes(_with_axis(font_with_stem(9, -9))) == {}
+
+
+def test_lean_axes_does_not_print_the_fonts_own_faults(monkeypatch, caplog):
+    import logging
+
+    from fontTools.varLib import instancer
+
+    from FontCore.core_slant_measure import lean_axes
+
+    def noisy(f, loc, inplace=False):
+        logging.getLogger("fontTools.varLib.instancer").warning("Invalid avar SegmentMap record")
+        return font_with_stem(15, -15)
+
+    monkeypatch.setattr(instancer, "instantiateVariableFont", noisy)
+    with caplog.at_level(logging.WARNING):
+        lean_axes(_with_axis(font_with_stem(0, 0)))
+    assert "Invalid avar" not in caplog.text
