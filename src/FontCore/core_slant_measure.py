@@ -26,6 +26,7 @@ MAX_LEAN = 40.0  # an edge leaning further than this is not a stem edge
 MIN_SAMPLES = 4
 SHAPE_CHARS = "HIlEL"  # straight-sided letters: the whole-shape lean of these is the font's lean
 STAIR_GAP = 3.0  # edges say upright but the whole shape leans this far: a stair-stepped slant, not an upright
+SHALLOW_LEAN = 1.5  # two measures that both lean this far, the same way, outvote edges that read upright
 CONFIRM_SPREAD = 0.5  # the stem edges must agree this closely (degrees) before a second measure is asked to confirm them
 CONFIRM_SAMPLES = 10
 CONFIRM_AGREE = 1.5  # the stem centre-line must land this close to the edge measure
