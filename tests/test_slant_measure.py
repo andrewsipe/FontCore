@@ -3,10 +3,11 @@ import math
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 
-from FontCore.core_slant_measure import check_slant, measure_slant
+from FontCore import core_slant_measure
+from FontCore.core_slant_measure import check_slant, confirmed_slant, measure_slant, stem_centre_lean
 
 
-def font_with_stem(shear_degrees: float, declared: float):
+def font_with_stem(shear_degrees: float, declared: float, letters: str = "HIlE"):
     """A font whose H, I, l and E are plain rectangles sheared right by ``shear_degrees``."""
     k = math.tan(math.radians(shear_degrees))
 
@@ -19,10 +20,10 @@ def font_with_stem(shear_degrees: float, declared: float):
         pen.closePath()
         return pen.glyph()
 
-    names = [".notdef", "H", "I", "l", "E"]
+    names = [".notdef", *letters]
     fb = FontBuilder(1000, isTTF=True)
     fb.setupGlyphOrder(names)
-    fb.setupCharacterMap({ord(c): c for c in "HIlE"})
+    fb.setupCharacterMap({ord(c): c for c in letters})
     fb.setupGlyf({n: (TTGlyphPen(None).glyph() if n == ".notdef" else stem()) for n in names})
     fb.setupHorizontalMetrics({n: (500, 0) for n in names})
     fb.setupHorizontalHeader(ascent=800, descent=-200)
@@ -107,3 +108,26 @@ def test_a_stair_stepped_slant_is_not_called_upright():
     fb.setupOS2()
     fb.setupPost(italicAngle=-15)
     assert check_slant(fb.font).verdict == "unmeasurable"
+
+
+def test_the_stem_centre_line_follows_the_shear():
+    assert abs(stem_centre_lean(font_with_stem(12, -12)) + 12) < 0.3
+    assert abs(stem_centre_lean(font_with_stem(0, 0))) < 0.1
+
+
+def test_a_second_measure_confirms_a_clean_italic():
+    assert abs(confirmed_slant(font_with_stem(9, -9, "HIlEhnmu")) + 9) < 0.3
+
+
+def test_an_upright_is_not_confirmed_as_leaning():
+    assert confirmed_slant(font_with_stem(0, 0)) is None
+
+
+def test_edges_the_centre_line_does_not_back_are_not_confirmed(monkeypatch):
+    monkeypatch.setattr(core_slant_measure, "stem_centre_lean", lambda font: 33.0)
+    assert confirmed_slant(font_with_stem(9, -9)) is None
+
+
+def test_no_centre_line_means_not_confirmed(monkeypatch):
+    monkeypatch.setattr(core_slant_measure, "stem_centre_lean", lambda font: None)
+    assert confirmed_slant(font_with_stem(9, -9)) is None
